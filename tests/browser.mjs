@@ -1,0 +1,32 @@
+import {chromium} from '@playwright/test';
+import {mkdir,writeFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+await mkdir('output',{recursive:true});
+const browser=await chromium.launch({headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const snapshot=()=>page.evaluate(()=>window.__slime());
+const hold=async(key,ms)=>{await page.keyboard.down(key);await page.waitForTimeout(ms);await page.keyboard.up(key);};
+try{
+ await page.goto('http://127.0.0.1:5173',{waitUntil:'networkidle'});
+ await page.waitForFunction(()=>!!window.__slime&&window.__slime().particles.length>0);
+ assert.equal(await page.locator('.location-number').textContent(),'01');
+ await page.screenshot({path:'output/01-forest-intro.png'});
+ await page.getByRole('button',{name:'开始小小冒险'}).click();
+ await page.waitForTimeout(700);const initial=await snapshot();
+ await hold('d',900);const moved=await snapshot();assert(moved.center.x>initial.center.x+90,'Movement must advance player');
+ await page.keyboard.press('Space');await page.waitForTimeout(170);const jumped=await snapshot();assert(jumped.center.y<moved.center.y-20,'Jump must lift center');
+ await page.screenshot({path:'output/02-slime-jump.png'});
+ await page.waitForTimeout(650);await page.keyboard.press('q');await page.waitForTimeout(400);const split=await snapshot();
+ assert.equal(split.groups.length,2);assert.equal(split.particles.length,initial.particles.length);
+ await page.screenshot({path:'output/03-slime-split.png'});
+ await page.keyboard.press('Tab');await hold('d',260);await page.keyboard.press('e');await page.waitForTimeout(500);assert.equal((await snapshot()).groups.length,1);
+ await page.keyboard.press('Escape');await page.waitForTimeout(100);const paused=await snapshot();await hold('d',300);const still=await snapshot();assert.equal(still.center.x,paused.center.x);
+ await page.getByRole('button',{name:'继续冒险'}).focus();await page.keyboard.press('Enter');await page.waitForTimeout(150);assert.equal((await snapshot()).paused,false,'Focused resume must support native keyboard activation');
+ await page.keyboard.press('r');await page.waitForTimeout(500);assert((await snapshot()).center.x<330);
+ await page.setViewportSize({width:960,height:600});await page.waitForTimeout(200);await page.screenshot({path:'output/04-responsive.png'});
+ assert.equal(await page.locator('body').evaluate(el=>el.scrollWidth>window.innerWidth),false);
+ assert.deepEqual(errors,[]);
+ const result={checks:['boot','movement','jump','split mass conservation','merge','pause','reset','responsive'],errors,fps:(await snapshot()).fps};
+ await writeFile('output/browser-results.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+}finally{await browser.close();}
