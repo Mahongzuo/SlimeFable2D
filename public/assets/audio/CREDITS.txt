@@ -1,0 +1,25 @@
+Audio credits (personal / non-commercial use)
+
+Kenney UI Audio
+  Author: Kenney (www.kenney.nl)
+  License: CC0 1.0
+  Source: https://kenney.nl/assets/ui-audio
+  Mirror used: https://github.com/Calinou/kenney-ui-audio
+  Used for short interface/action cues (dew, land, dodge, etc.)
+
+SlimeFable Unreal project SFX (personal / non-commercial)
+  step/move loop: Content/Audio/SFX/Movement/sfx_crawl_01.wav → ue-crawl.ogg
+  slash: Content/Audio/SFX/Combat/sfx_slash_jelly_01.mp3 → ue-slash-jelly.ogg
+  jump: Content/Audio/SFX/Movement/sfx_jump_jelly_01.mp3 → ue-jump-jelly.ogg
+  swallow: Content/Audio/SFX/Combat/sfx_swallow_01.wav → ue-swallow.ogg
+
+Where a hosted file could not be fetched, the game falls back to a tiny
+WebAudio synthesizer in src/audio/bus.ts so every cue still plays.
+
+BGM
+  explore: Iremos Forest Theme Loop — beardalaxy — CC0
+    https://opengameart.org/content/iremos-forest-theme-loop
+  boss: Forest Stage — MintoDog — CC0
+    https://opengameart.org/content/forest-stage
+
+If a hosted file is missing, src/audio/bus.ts synthesizes a fallback.

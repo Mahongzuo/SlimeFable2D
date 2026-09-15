@@ -14,13 +14,18 @@ export type Actions={
  select2:boolean;
  reset:boolean;
  pause:boolean;
+ melee:boolean;
+ meleeHeld:boolean;
+ ranged:boolean;
+ inventory:boolean;
+ dodge:boolean;
  confirm:boolean;
  back:boolean;
  menuY:number;
 };
 
 export function emptyActions():Actions{
- return {move:0,climb:0,squeeze:false,jump:false,jumpHeld:false,split:false,merge:false,switch:false,select1:false,select2:false,reset:false,pause:false,confirm:false,back:false,menuY:0};
+ return {move:0,climb:0,squeeze:false,jump:false,jumpHeld:false,split:false,merge:false,switch:false,select1:false,select2:false,reset:false,pause:false,melee:false,meleeHeld:false,ranged:false,inventory:false,dodge:false,confirm:false,back:false,menuY:0};
 }
 
 type PadSource=()=>(Gamepad|null)[];
@@ -50,6 +55,7 @@ export class PlayerInput {
  private touchMove=0;
  private touchClimb=0;
  private touchHeld=new Set<string>();
+ private mouseHeld=new Set<string>();
  private pads:PadSource;
 
  constructor(bindings:KeyBindings=DEFAULT_BINDINGS,pref:SchemePref='auto',pads?:PadSource){
@@ -87,8 +93,15 @@ export class PlayerInput {
   this.keys.clear();
   this.pulses.clear();
   this.touchHeld.clear();
+  this.mouseHeld.clear();
   this.touchMove=0;
   this.touchClimb=0;
+ }
+
+ setMouse(action:'melee'|'dodge',down:boolean){
+  this.note('keyboard');
+  if(down){this.mouseHeld.add(action);this.pulses.add(`mouse:${action}`);}
+  else this.mouseHeld.delete(action);
  }
 
  setTouchAxis(x:number,y:number){
@@ -119,7 +132,8 @@ export class PlayerInput {
   if(move)now.add(move>0?'right':'left');
   if(climb)now.add(climb>0?'down':'up');
   FACE.forEach((name,i)=>{if(pressed(pad.buttons[i]))now.add(name);});
-  if(pressed(pad.buttons[6]))now.add('squeeze');
+  if(pressed(pad.buttons[6]))now.add('melee');
+  if(pressed(pad.buttons[7]))now.add('ranged');
   if(pressed(pad.buttons[5])||pressed(pad.buttons[4]))now.add('switch');
   if(pressed(pad.buttons[9]))now.add('pause');
   if(pressed(pad.buttons[8]))now.add('reset');
@@ -162,6 +176,11 @@ export class PlayerInput {
    select2:edge('select2'),
    reset:edge('reset'),
    pause:edge('pause')||this.pulses.has('pad:pause')||this.pulses.has('touch:pause'),
+   melee:edge('melee')||this.pulses.has('mouse:melee'),
+   meleeHeld:this.keyHeld('melee')||!!pad?.held.has('melee')||this.touchHeld.has('melee')||this.mouseHeld.has('melee'),
+   ranged:edge('ranged'),
+   inventory:edge('inventory'),
+   dodge:edge('dodge')||this.pulses.has('mouse:dodge')||this.pulses.has('touch:dodge'),
    confirm,back,menuY,
   };
   this.pulses.clear();

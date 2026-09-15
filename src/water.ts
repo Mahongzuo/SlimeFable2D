@@ -16,8 +16,8 @@ export class WaterSimulation {
  step(dt:number,ps:Particle[]){
   this.cooldown-=dt;let crossings=0,energy=0,x=0;
   for(let i=0;i<ps.length;i++){
-   const p=ps[i],inside=p.x>this.bounds.x&&p.x<this.bounds.x+this.bounds.w&&p.y>this.bounds.y;
-   if(inside!==!!this.contact.get(p)&&p.x>this.bounds.x&&p.x<this.bounds.x+this.bounds.w&&Math.abs(p.vy)>45){crossings++;energy+=Math.abs(p.vy);x+=p.x;}
+   const p=ps[i],inside=p.x>this.bounds.x&&p.x<this.bounds.x+this.bounds.w&&p.y>this.bounds.y&&p.y<this.bounds.y+this.bounds.h;
+   if(inside!==!!this.contact.get(p)&&inside&&Math.abs(p.vy)>45){crossings++;energy+=Math.abs(p.vy);x+=p.x;}
    this.contact.set(p,inside);
   }
   if(crossings>2&&this.cooldown<=0){this.impact(x/crossings,energy/crossings,.8);this.cooldown=.085;}

@@ -1,3 +1,4 @@
+import {CAMY_HONEY,FEATURES_HONEY} from './catalog';
 import {Level} from './level';
 import {SlimeSimulation,type Rect} from './physics';
 import {WaxPlatform} from './wax';
@@ -6,6 +7,9 @@ import {HoneyPool} from './honey';
 export class HoneyLevel extends Level {
  override readonly id='honey';
  override readonly width=5000;
+ override readonly features=FEATURES_HONEY;
+ override readonly camY=CAMY_HONEY;
+ override readonly fallY=980;
  override readonly water={x:-9999,y:9999,w:1,h:1};
  override readonly gate:Rect={x:3588,y:180,w:30,h:280,kind:'gate'};
  readonly lowWall:Rect={x:3588,y:460,w:30,h:400,kind:'gate'};
@@ -54,6 +58,10 @@ export class HoneyLevel extends Level {
  latchOn=false;
  override checkpoint={x:280,y:540};
  override solids:Rect[]=[];
+ override souvenirs=[];
+ override stakes=[];
+ override enemies=[{kind:'hive',x:4180,y:600,id:'hive-2061',patrol:70}];
+ override quests=[];
  override dew=[
   {x:520,y:548,got:false},
   {x:1288,y:548,got:false},
@@ -62,7 +70,10 @@ export class HoneyLevel extends Level {
   {x:4140,y:200,got:false},
   {x:4770,y:530,got:false},
  ];
- constructor(){super();this.sync();}
+ inRefill(x:number,y:number){
+  return this.pools.some(p=>x>p.bounds.x-10&&x<p.bounds.x+p.bounds.w+10&&y>p.bounds.y-36&&y<p.bounds.y+p.bounds.h+30);
+ }
+ constructor(){super();this.bossDown=true;this.sync();}
  private occupied(sim:SlimeSimulation,plate:{x:number;y:number},pad=38){
   return sim.groups().some(g=>sim.particles.filter(p=>p.group===g&&p.ground&&Math.abs(p.x-plate.x)<pad&&Math.abs(p.y-plate.y)<8).length>6);
  }

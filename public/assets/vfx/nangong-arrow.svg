@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 28" width="12" height="28">
+  <!-- Arrow shaft -->
+  <rect x="5" y="6" width="2" height="20" fill="#5588cc" rx="1"/>
+  <!-- Arrow head -->
+  <polygon points="6,0 2,8 10,8" fill="#88bbff"/>
+  <!-- Arrow fletching -->
+  <polygon points="4,24 6,22 6,28" fill="#4477aa" opacity="0.8"/>
+  <polygon points="8,24 6,22 6,28" fill="#4477aa" opacity="0.8"/>
+  <!-- Glow -->
+  <ellipse cx="6" cy="4" rx="3" ry="4" fill="#aaddff" opacity="0.3"/>
+</svg>

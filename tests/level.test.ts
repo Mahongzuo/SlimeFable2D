@@ -3,6 +3,7 @@ import {Level} from '../src/level';
 import {SlimeSimulation} from '../src/physics';
 it('requires both separate groups on plates and latches gate open',()=>{
  const level=new Level(),s=new SlimeSimulation(3250,530,level.solids);
+ for(const d of level.dew)d.got=true;
  level.update(s,1/60);expect(level.gateOpen).toBe(false);
  s.split();
  s.particles.forEach(p=>{p.x=p.group===0?level.plates[0].x:level.plates[1].x;p.y=590;});

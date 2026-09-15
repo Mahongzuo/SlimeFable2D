@@ -6,6 +6,8 @@ const clamp=(v:number,a:number,b:number)=>Math.max(a,Math.min(b,v));
 const kernel=(r2:number)=>{if(r2>=H2)return 0;const u=1-r2/H2;return u*u*u;};
 // Discrete rest density measured from an infinite, uniformly spaced 2D lattice.
 const REST=(()=>{let d=0;for(let y=-3;y<=3;y++)for(let x=-3;x<=3;x++)d+=kernel((x*x+y*y)*SPACING*SPACING);return d;})();
+const STRAY_GAP=88,STRAY_FAR=220,RECALL_WAIT=4;
+type BodyCluster={coreC:{x:number;y:number;vx:number;vy:number;n:number};strayC:{x:number;y:number;vx:number;vy:number;n:number};stray:Set<Particle>};
 
 export class SlimeSimulation {
  particles:Particle[]=[];
@@ -22,10 +24,18 @@ export class SlimeSimulation {
  private squashed=new Map<number,boolean>();
  private jelly=new Map<number,{q:number;v:number;phase:number}>();
  climbing=false;
+ recalled=false;
+ private dropThrough=false;
  private neighbors:number[][]=[];
+ private strayAcc=new Map<number,number>();
+ private ghost=new Set<Particle>();
+ private ghostUntil=0;
+ private cachedAt=-1;
+ private cached=new Map<number,BodyCluster>();
  constructor(x:number,y:number,solids:Rect[]){this.solids=solids;this.reset(x,y);}
  reset(x:number,y:number){
   this.particles=[];this.activeGroup=0;this.jumpCooldowns.clear();this.groundedUntil.clear();this.jumpStarted.clear();this.jumps.clear();this.walls.clear();this.wallUntil.clear();this.squashed.clear();this.jelly.clear();
+  this.strayAcc.clear();this.ghost.clear();this.ghostUntil=0;this.cached.clear();this.cachedAt=-1;this.recalled=false;
   for(let iy=-12;iy<=12;iy++)for(let ix=-12;ix<=12;ix++){
    if(ix*ix+iy*iy>144)continue;
    const px=x+ix*SPACING,py=y+iy*SPACING*.85;
@@ -33,10 +43,108 @@ export class SlimeSimulation {
   }
  }
  groups(){return [...new Set(this.particles.map(p=>p.group))];}
- center(group=this.activeGroup){
-  let x=0,y=0,vx=0,vy=0,n=0;
-  for(const p of this.particles)if(p.group===group){x+=p.x;y+=p.y;vx+=p.vx;vy+=p.vy;n++;}
-  return {x:x/n,y:y/n,vx:vx/n,vy:vy/n,n};
+ center(group=this.activeGroup){return this.cluster(group).coreC;}
+ private mean(ps:Particle[]){
+  let x=0,y=0,vx=0,vy=0;
+  for(const p of ps){x+=p.x;y+=p.y;vx+=p.vx;vy+=p.vy;}
+  const n=Math.max(1,ps.length);
+  return {x:x/n,y:y/n,vx:vx/n,vy:vy/n,n:ps.length};
+ }
+ private blocked(ax:number,ay:number,bx:number,by:number){
+  for(let t=0;t<=1;t+=.05){
+   const x=ax+(bx-ax)*t,y=ay+(by-ay)*t;
+   for(const r of this.solids){
+    if(r.oneWay||r.kind==='boundary')continue;
+    if(x>r.x&&x<r.x+r.w&&y>r.y&&y<r.y+r.h)return true;
+   }
+  }
+  return false;
+ }
+ private cluster(group:number):BodyCluster{
+  const ps=this.particles.filter(p=>p.group===group);
+  if(!ps.length)return {coreC:this.mean([]),strayC:this.mean([]),stray:new Set()};
+  const xs=ps.map(p=>p.x).sort((a,b)=>a-b),ys=ps.map(p=>p.y).sort((a,b)=>a-b);
+  const mx=xs[xs.length>>1],my=ys[ys.length>>1];
+  const stray=new Set<Particle>();
+  for(const p of ps){
+   const d=Math.hypot(p.x-mx,p.y-my);
+   if(d>STRAY_FAR||(d>STRAY_GAP&&this.blocked(p.x,p.y,mx,my)))stray.add(p);
+  }
+  if(stray.size>ps.length*.65){
+   const left=ps.filter(p=>p.x<=mx),right=ps.filter(p=>p.x>mx);
+   const main=left.length>=right.length?left:right;
+   stray.clear();
+   for(const p of ps)if(!main.includes(p))stray.add(p);
+  }
+  const core=ps.filter(p=>!stray.has(p));
+  return {coreC:this.mean(core.length?core:ps),strayC:this.mean(stray.size?[...stray]:core),stray};
+ }
+ private body(group:number){
+  if(this.cachedAt!==this.time){this.cached.clear();this.cachedAt=this.time;}
+  let found=this.cached.get(group);
+  if(!found){found=this.cluster(group);this.cached.set(group,found);}
+  return found;
+ }
+ private suck(group:number,chunk:BodyCluster){
+  const c=chunk.coreC;let i=0;
+  for(const p of chunk.stray){
+   const a=i++*2.399;
+   p.x=c.x+Math.cos(a)*10;p.y=c.y+Math.sin(a)*8;p.ox=p.x;p.oy=p.y;p.vx=0;p.vy=0;
+   this.ghost.add(p);
+  }
+  this.ghostUntil=this.time+.25;this.recalled=true;this.cachedAt=-1;
+ }
+ private recallStrays(dt:number){
+  if(this.time>=this.ghostUntil&&this.ghost.size)this.ghost.clear();
+  for(const g of this.groups()){
+   const chunk=this.body(g);
+   if(chunk.stray.size)this.strayAcc.set(g,(this.strayAcc.get(g)??0)+dt);
+   else this.strayAcc.set(g,0);
+   if((this.strayAcc.get(g)??0)>=RECALL_WAIT){this.suck(g,chunk);this.strayAcc.set(g,0);}
+  }
+ }
+ lunge(facing:number,group=this.activeGroup){
+  const c=this.center(group);
+  for(const p of this.particles){
+   if(p.group!==group)continue;
+   const along=Math.max(0,(p.x-c.x)*facing);
+    p.vx+=facing*(170+along*5.5);
+    p.vy-=32+along*.9;
+  }
+  const j=this.jelly.get(group);if(j)j.v-=1.6;
+ }
+ chase(tx:number,ty:number,group=this.activeGroup){
+  const c=this.center(group),dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy)||1;
+  const pull=Math.min(d,78);
+  for(const p of this.particles){
+   if(p.group!==group)continue;
+   p.vx+=(dx/d)*pull*4.6;p.vy+=(dy/d)*pull*2.2-18;
+  }
+ }
+ spit(facing:number,group=this.activeGroup){
+  for(const p of this.particles){
+   if(p.group!==group)continue;
+   p.vx+=facing*-46;p.vy-=10;
+  }
+ }
+ impactJelly(impulse=2.4,group=this.activeGroup){
+  const j=this.jelly.get(group)??{q:0,v:0,phase:0};
+  j.v-=impulse;this.jelly.set(group,j);
+  const c=this.center(group);
+  for(const p of this.particles){
+   if(p.group!==group)continue;
+   const dx=p.x-c.x,dy=p.y-c.y,d=Math.hypot(dx,dy)||1;
+   p.vx+=(dx/d)*impulse*28;p.vy+=(dy/d)*impulse*16-impulse*10;
+  }
+ }
+ dash(facing:number,group=this.activeGroup){
+  const c=this.center(group);
+  for(const p of this.particles){
+   if(p.group!==group)continue;
+   const along=Math.max(0,(p.x-c.x)*facing);
+   p.vx+=facing*(340+along*4.2);p.vy-=28;
+  }
+  const j=this.jelly.get(group);if(j)j.v-=1.2;
  }
  switchGroup(){const g=this.groups();this.activeGroup=g.find(g=>g!==this.activeGroup)??g[0];}
  selectGroup(group:number){if(this.groups().includes(group))this.activeGroup=group;}
@@ -71,8 +179,13 @@ export class SlimeSimulation {
   });
  }
  private collide(p:Particle){
+  if(this.ghost.has(p)&&this.time<this.ghostUntil)return;
   for(const s of this.solids){
-   if(s.oneWay){if(p.oy<=s.y-R+.01&&p.vy>=0&&p.x>s.x&&p.x<s.x+s.w&&p.y>=s.y-R&&p.y<s.y+s.h){p.y=s.y-R;p.ground=true;}continue;}
+   if(s.oneWay){
+    if(this.dropThrough&&p.group===this.activeGroup)continue;
+    if(p.oy<=s.y-R+.01&&p.vy>=0&&p.x>s.x&&p.x<s.x+s.w&&p.y>=s.y-R&&p.y<s.y+s.h){p.y=s.y-R;p.ground=true;}
+    continue;
+   }
    const l=s.x-R,r=s.x+s.w+R,t=s.y-R,b=s.y+s.h+R;
    if(p.x<=l||p.x>=r||p.y<=t||p.y>=b)continue;
    const dl=p.x-l,dr=r-p.x,dt=p.y-t,db=b-p.y,m=Math.min(dl,dr,dt,db);
@@ -82,7 +195,9 @@ export class SlimeSimulation {
  }
  step(dt:number,input:Input){
   this.time+=dt;
-  const groups=this.groups(),centers=new Map(groups.map(g=>[g,this.center(g)]));
+  this.recallStrays(dt);
+  this.dropThrough=!!input.squeeze||(input.climb??0)<0;
+  const groups=this.groups(),chunks=new Map(groups.map(g=>[g,this.body(g)])),centers=new Map(groups.map(g=>[g,chunks.get(g)!.coreC]));
   const groundedGroups=new Set(this.particles.filter(p=>p.ground).map(p=>p.group));
   const constrained=new Map<number,boolean>();
   for(const g of groups){
@@ -121,7 +236,7 @@ export class SlimeSimulation {
   const jump=input.jump&&this.time>=(this.jumpCooldowns.get(this.activeGroup)??0)&&((this.jumps.get(this.activeGroup)??0)<2||wet||attached);
   if(jump){this.jumps.set(this.activeGroup,(this.jumps.get(this.activeGroup)??0)+1);this.jumpCooldowns.set(this.activeGroup,this.time+.14);this.groundedUntil.set(this.activeGroup,0);this.jumpStarted.set(this.activeGroup,this.time);this.wallUntil.set(this.activeGroup,0);const j=this.jelly.get(this.activeGroup)!;j.v-=2;}
   for(const p of this.particles){
-   const c=centers.get(p.group)!,active=p.group===this.activeGroup,squeeze=!!constrained.get(p.group);
+   const chunk=chunks.get(p.group)!,c=chunk.stray.has(p)?chunk.strayC:chunk.coreC,active=p.group===this.activeGroup,squeeze=!!constrained.get(p.group);
    p.ox=p.x;p.oy=p.y;
    const cohesion=squeeze?6.5:105;
    p.vx+=(c.x-p.x)*cohesion*dt;
@@ -139,7 +254,7 @@ export class SlimeSimulation {
     if(jump){p.vy=(this.water?.kind==='honey'?-420:-490)+(p.y-c.y)*3.8;if(attached)p.vx=-wall!.side*240;}
     else if(input.jumpHeld&&p.vy<0&&this.time-(this.jumpStarted.get(p.group)??-100)<.18)p.vy-=(this.water?.kind==='honey'?360:500)*dt;
    }else p.vx-=c.vx*(groundedGroups.has(p.group)?10:1.8)*dt;
-   if(this.water&&p.x>this.water.x&&p.x<this.water.x+this.water.w&&p.y>this.water.y){
+   if(this.water&&p.x>this.water.x&&p.x<this.water.x+this.water.w&&p.y>this.water.y&&p.y<this.water.y+this.water.h+48){
     if(this.water.kind==='honey'){
      p.vy-=1580*dt;p.vx*=.968;p.vy*=.96;
      if(Math.abs(p.vx)>140)p.vx*=.93;

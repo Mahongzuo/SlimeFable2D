@@ -3,6 +3,7 @@ import {WAX_HOLD,WAX_REFORM,WaxPlatform} from '../src/wax';
 import {HoneyPool} from '../src/honey';
 import {HoneyLevel} from '../src/honey-level';
 import {SlimeSimulation} from '../src/physics';
+import {antWalk} from '../src/honey-art';
 describe('wax timing',()=>{
  it('breaks after a short hold and reforms on schedule',()=>{
   const p=new WaxPlatform(0,100,120);p.advance(WAX_HOLD-.01,true);expect(p.solid).toBe(true);
@@ -83,5 +84,15 @@ describe('honey cavern',()=>{
   level.respawn(sim);
   expect(level.wax[0].solid).toBe(true);expect(level.wax[0].shards).toHaveLength(0);
   expect(level.film(0)).toBe(0);
+ });
+});
+describe('ants',()=>{
+ it('never walks past the rim of its wax floor',()=>{
+  const minX=1220+22,maxX=1220+370-22,home=1540,span=90;
+  for(let t=-1;t<=1;t+=.1){
+   const x=antWalk(home,span,minX,maxX,t);
+   expect(x).toBeGreaterThanOrEqual(minX);
+   expect(x).toBeLessThanOrEqual(maxX);
+  }
  });
 });

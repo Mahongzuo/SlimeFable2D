@@ -4,3 +4,5 @@ test-results/
 output/
 .playwright-mcp/
 *.local
+.tmp-*
+*-screenshot.png

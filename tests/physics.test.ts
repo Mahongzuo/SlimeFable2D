@@ -52,6 +52,34 @@ describe('PBF slime',()=>{
   const vy=s.center(1).vy;s.step(1/120,{...idle,jump:true});
   expect(s.center(1).vy).toBeGreaterThan(vy-50);
  });
+ it('does not treat the underground as the surface pool',()=>{
+  const s=new SlimeSimulation(2600,1600,[{x:2400,y:1700,w:800,h:80}]);
+  s.water={x:2420,y:602,w:480,h:80};
+  const y=s.center().y;
+  for(let i=0;i<40;i++)s.step(1/120,idle);
+  expect(s.center().y).toBeGreaterThan(y+8);
+ });
+ it('lets squeeze or down drop through a one-way ledge',()=>{
+  const ledge=[{x:100,y:600,w:220,h:16,oneWay:true as const}];
+  const s=new SlimeSimulation(200,550,ledge);
+  for(let i=0;i<150;i++)s.step(1/120,idle);
+  const y=s.center().y;
+  expect(y).toBeLessThan(598);
+  for(let i=0;i<90;i++)s.step(1/120,{...idle,climb:-1});
+  expect(s.center().y).toBeGreaterThan(y+20);
+ });
+ it('recalls scraped particles after four seconds, ignoring the wall',()=>{
+  const wall={x:196,y:400,w:10,h:220};
+  const s=new SlimeSimulation(200,550,[...floor,wall]);
+  const mid=Math.floor(s.particles.length/2);
+  s.particles.forEach((p,i)=>{p.x=i<mid?150:250;p.y=550;p.vx=0;p.vy=0;p.ox=p.x;p.oy=p.y;});
+  for(let i=0;i<360;i++)s.step(1/120,idle);
+  expect(s.recalled).toBe(false);
+  expect(Math.max(...s.particles.map(p=>p.x))-Math.min(...s.particles.map(p=>p.x))).toBeGreaterThan(70);
+  for(let i=0;i<160;i++)s.step(1/120,idle);
+  expect(s.recalled).toBe(true);
+  expect(Math.max(...s.particles.map(p=>p.x))-Math.min(...s.particles.map(p=>p.x))).toBeLessThan(140);
+ },15000);
  it('holding jump produces a higher arc than a short tap',()=>{
   const peak=(held:boolean)=>{const s=new SlimeSimulation(200,550,floor);
    for(let i=0;i<120;i++)s.step(1/120,idle);

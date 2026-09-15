@@ -2,11 +2,15 @@ import {canvas,rng,W,H} from './art';
 import type {HoneyLevel} from './honey-level';
 import type {Rect,SlimeSimulation} from './physics';
 import {WAX_REFORM,type WaxPlatform} from './wax';
+import {asset} from './asset';
 type C=CanvasRenderingContext2D;
 type Img=HTMLImageElement|HTMLCanvasElement;
 const Y0=280;
 type Prop={kind:'lantern'|'comb'|'drape'|'crystal'|'mound'|'puff';x:number;y:number;s:number;flip:number;phase:number;hang:number;sway:number;bounce:number;vSway:number;vBounce:number};
-type Critter={kind:'bee'|'ant';x:number;y:number;homeX:number;homeY:number;phase:number;span:number;s:number;dir:number};
+type Critter={kind:'bee'|'ant';x:number;y:number;homeX:number;homeY:number;phase:number;span:number;s:number;dir:number;minX:number;maxX:number};
+export function antWalk(homeX:number,span:number,minX:number,maxX:number,wave:number){
+ return Math.max(minX,Math.min(maxX,homeX+wave*span));
+}
 function load(src:string){return new Promise<HTMLImageElement>((ok,err)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=err;i.src=src;});}
 function hex(c:C,x:number,y:number,r:number){
  c.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i,px=x+r*Math.cos(a),py=y+r*Math.sin(a);i?c.lineTo(px,py):c.moveTo(px,py);}c.closePath();
@@ -86,10 +90,10 @@ export class HoneyArt {
  private async hydrate(){
   try{
    const [wax,honey,lantern,drape,crystal,hang,bee,ant]=await Promise.all([
-    load('/assets/honey/wax.png'),load('/assets/honey/honey.png'),
-    load('/assets/honey/lantern.png'),load('/assets/honey/drape.png'),
-    load('/assets/honey/crystal.png'),load('/assets/honey/hang-comb.png'),
-    load('/assets/honey/bee.png'),load('/assets/honey/ant.png'),
+    load(asset('assets/honey/wax.png')),load(asset('assets/honey/honey.png')),
+    load(asset('assets/honey/lantern.png')),load(asset('assets/honey/drape.png')),
+    load(asset('assets/honey/crystal.png')),load(asset('assets/honey/hang-comb.png')),
+    load(asset('assets/honey/bee.png')),load(asset('assets/honey/ant.png')),
    ]);
    this.imgs={wax,honey,lantern:punchDark(lantern),drape:punchDark(drape),crystal:punchDark(crystal),hang:punchDark(hang),bee:punchDark(bee),ant:punchDark(ant)};
    this.ready=true;this.paintFar();this.paintMiddle();this.paintTerrain();this.dirty=true;
@@ -104,14 +108,27 @@ export class HoneyArt {
  }
  private scatterCritters(){
   const r=rng(77);
-  for(let i=0;i<14;i++)this.critters.push({kind:'bee',x:180+r()*4700,y:90+r()*160,homeX:0,homeY:0,phase:r()*6.28,span:46+r()*70,s:.95+r()*.4,dir:r()>.5?1:-1});
-  for(const c of this.critters)if(c.kind==='bee'){c.homeX=c.x;c.homeY=c.y;}
-  const grounds=this.level.base.filter(s=>s.kind==='wax-rock'&&s.h>40&&s.w>120);
+  for(let i=0;i<14;i++){
+   const x=180+r()*4700,y=90+r()*160;
+   this.critters.push({kind:'bee',x,y,homeX:x,homeY:y,phase:r()*6.28,span:46+r()*70,s:.95+r()*.4,dir:r()>.5?1:-1,minX:x,maxX:x});
+  }
+  const grounds=this.level.base.filter(s=>s.kind==='wax-rock'&&!s.oneWay&&s.h>40&&s.w>140);
   for(let i=0;i<12;i++){
    const g=grounds[Math.floor(r()*grounds.length)];if(!g)continue;
-   const x=g.x+30+r()*Math.max(40,g.w-60);
-   this.critters.push({kind:'ant',x,y:g.y,homeX:x,homeY:g.y,phase:r()*6.28,span:36+r()*70,s:1+r()*.35,dir:r()>.5?1:-1});
+   const minX=g.x+22,maxX=g.x+g.w-22;if(maxX<=minX)continue;
+   const x=minX+r()*(maxX-minX);
+   this.critters.push({kind:'ant',x,y:g.y,homeX:x,homeY:g.y,phase:r()*6.28,span:Math.min(36+r()*70,(maxX-minX)*.45),s:1+r()*.35,dir:r()>.5?1:-1,minX,maxX});
   }
+ }
+ private groundAt(x:number,preferY:number){
+  let best:number|undefined,bestDist=24;
+  for(const s of this.level.base){
+   if(s.kind==='pool'||s.kind==='boundary'||s.oneWay||s.h<40)continue;
+   if(x<s.x||x>s.x+s.w)continue;
+   const dist=Math.abs(s.y-preferY);
+   if(dist<=bestDist){bestDist=dist;best=s.y;}
+  }
+  return best;
  }
  private waxStone(c:C,x:number,y:number,w:number,h:number,seed=1){
   const r=rng(seed+((x*13+y)|0));
@@ -310,8 +327,8 @@ export class HoneyArt {
     a.x=a.homeX+Math.sin(time*.85+a.phase)*a.span;
     a.y=a.homeY+Math.cos(time*1.15+a.phase)*22;
    }else{
-    a.x=a.homeX+Math.sin(time*.32+a.phase)*a.span;
-    a.y=a.homeY-1;
+    a.x=antWalk(a.homeX,a.span,a.minX,a.maxX,Math.sin(time*.32+a.phase));
+    a.y=(this.groundAt(a.x,a.homeY)??a.homeY)-1;
    }
    const x=a.x-camera;if(x<-40||x>W+40)continue;
    const flip=a.kind==='bee'?(Math.cos(time*.85+a.phase)>=0?1:-1):a.dir*(Math.cos(time*.32+a.phase)>=0?1:-1);

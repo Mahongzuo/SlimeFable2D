@@ -39,6 +39,13 @@ it('recovers a compact jelly body after the entire body exits a narrow gap, even
  expect(Math.max(...xs)-Math.min(...xs)).toBeLessThan(135);
  expect(Math.max(...ys)-Math.min(...ys)).toBeGreaterThan(42);
 });
+it('ignores particles that only share the pool x-range below the basin',()=>{
+ const w=new WaterSimulation({x:0,y:100,w:160,h:58});
+ const below=[{x:80,y:400,ox:80,oy:400,vx:0,vy:-200,group:0,lambda:0,ground:false}];
+ w.step(1/60,below);
+ expect(w.drops.length).toBe(0);
+ expect(Math.max(...w.heights.map(Math.abs))).toBe(0);
+});
 it('impact produces travelling waves and ballistic splash drops that return to water',()=>{
  const w=new WaterSimulation({x:0,y:100,w:480,h:80});
  w.impact(240,420,1);
