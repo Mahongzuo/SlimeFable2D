@@ -1,0 +1,38 @@
+角色63.png
+size: 1000,1168
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+handLNew
+  bounds: 516, 0, 256, 294
+  offsets: 0, 0, 256, 294
+  index: -1
+headNew
+  bounds: 750, 298, 250, 200
+  offsets: 0, 0, 250, 200
+  index: -1
+yz
+  bounds: 750, 636, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+bodyNew
+  bounds: 298, 516, 237, 230
+  offsets: 0, 0, 237, 230
+  index: -1
+footLNew
+  bounds: 502, 750, 130, 164
+  offsets: 0, 0, 130, 164
+  index: -1
+handRNew
+  bounds: 0, 516, 270, 310
+  offsets: 0, 0, 270, 310
+  index: -1
+footRNew
+  bounds: 298, 1004, 154, 164
+  offsets: 0, 0, 154, 164
+  index: -1
+head
+  bounds: 0, 0, 512, 512
+  offsets: 0, 0, 512, 512
+  index: -1

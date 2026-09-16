@@ -1,0 +1,34 @@
+角色6.png
+size: 586,705
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+gunR
+  bounds: 212, 590, 148, 115
+  offsets: 0, 0, 148, 115
+  index: -1
+gunL
+  bounds: 0, 445, 208, 130
+  offsets: 0, 0, 208, 130
+  index: -1
+yz
+  bounds: 403, 445, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+leg2
+  bounds: 445, 212, 141, 187
+  offsets: 0, 0, 141, 187
+  index: -1
+leg1
+  bounds: 288, 0, 153, 178
+  offsets: 0, 0, 153, 178
+  index: -1
+head
+  bounds: 0, 0, 226, 284
+  offsets: 0, 0, 226, 284
+  index: -1
+body
+  bounds: 182, 288, 139, 152
+  offsets: 0, 0, 139, 152
+  index: -1

@@ -1,0 +1,42 @@
+角色16.png
+size: 971,1064
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+handR
+  bounds: 678, 845, 174, 111
+  offsets: 0, 0, 174, 111
+  index: -1
+yz
+  bounds: 797, 460, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+leg2
+  bounds: 354, 797, 102, 267
+  offsets: 0, 0, 102, 267
+  index: -1
+leg1
+  bounds: 678, 354, 115, 280
+  offsets: 0, 0, 115, 280
+  index: -1
+cloak2
+  bounds: 0, 516, 317, 353
+  offsets: 0, 0, 317, 353
+  index: -1
+head
+  bounds: 354, 516, 318, 158
+  offsets: 0, 0, 318, 158
+  index: -1
+handL
+  bounds: 638, 678, 203, 113
+  offsets: 0, 0, 203, 113
+  index: -1
+body
+  bounds: 516, 0, 193, 350
+  offsets: 0, 0, 193, 350
+  index: -1
+dao
+  bounds: 0, 0, 512, 512
+  offsets: 0, 0, 512, 512
+  index: -1

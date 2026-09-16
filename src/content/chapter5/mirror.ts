@@ -51,7 +51,12 @@ export const MIRROR_LAYOUT:LevelLayout={
   {x:1000,y:680,got:false,role:'main',skin:'mirror'},
   {x:2920,y:240,got:false,role:'main',skin:'mirror'},
  ],
- enemies:[],
+ enemies:[
+  {id:'wk1-altar',kind:'wk1',x:1860,y:1180,patrol:70},
+  {id:'wk2-altar',kind:'wk2',x:2280,y:1180,patrol:80},
+  {id:'han-gate',kind:'han',x:2500,y:280,patrol:60},
+  {id:'horn-gate',kind:'horn',x:2780,y:280,patrol:60},
+ ],
  souvenirs:[{id:'mirrorstar',name:'镜湖星片',x:720,y:680,got:false}],
  stakes:[],
  areas:[
@@ -74,8 +79,8 @@ export const MIRROR_LAYOUT:LevelLayout={
  hints:[
   {x0:0,x1:1800,y0:1480,y1:2200,text:'浅滩嵌在两岸之间 · 走进会沉，空格跃出后走东阶'},
   {x0:1680,x1:3100,y0:1000,y1:1480,text:'西去花园，东侧宽阶通向神门'},
-  {x0:400,x1:1700,y0:600,y1:1000,text:'星空花园 · 沿西阶回到祭坛'},
-  {x0:2200,x1:3600,y0:0,y1:520,text:'合并后走进天穹之门，通关后还可继续逛'},
+  {x0:400,x1:1700,y0:600,y1:1000,text:'星空花园 · 走进星门可去天穹之门，再走一次会回来'},
+  {x0:2200,x1:3600,y0:0,y1:520,text:'韩小立与白角镜使 · 分身拆火力，两人都倒下后才能离开'},
  ],
  checks:[
   {x:1640,y:1640,at:{x:1520,y:1600,w:280,h:200}},
@@ -90,5 +95,9 @@ export const MIRROR_LAYOUT:LevelLayout={
   {id:'lan-b',kit:'mirror-lantern',x:3000,y:280,s:.8},
   {id:'vine-a',kit:'mirror-vine',x:500,y:720,s:.7},
   {id:'vine-b',kit:'mirror-vine',x:1100,y:720,s:.65},
+ ],
+ portals:[
+  {id:'gate-west',x:880,y:720,pair:'sky'},
+  {id:'gate-east',x:2820,y:280,pair:'sky'},
  ],
 };

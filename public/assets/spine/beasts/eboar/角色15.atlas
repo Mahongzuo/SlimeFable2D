@@ -1,0 +1,26 @@
+角色15.png
+size: 771,797
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+yz
+  bounds: 597, 429, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+head
+  bounds: 0, 430, 272, 245
+  offsets: 0, 0, 272, 245
+  index: -1
+footL
+  bounds: 276, 597, 149, 200
+  offsets: 0, 0, 149, 200
+  index: -1
+footR
+  bounds: 430, 276, 163, 215
+  offsets: 0, 0, 163, 215
+  index: -1
+body
+  bounds: 0, 0, 426, 305
+  offsets: 0, 0, 426, 305
+  index: -1

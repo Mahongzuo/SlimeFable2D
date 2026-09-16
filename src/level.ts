@@ -1,6 +1,7 @@
+import {ENEMIES} from './ai/machine';
 import {CAMY_FOREST,FEATURES_FOREST,type CamClamp,type LevelFeatures} from './catalog';
 import {FOREST_LAYOUT,WORLD_HEIGHT,WORLD_WIDTH} from './content/chapter1/forest';
-import {cloneLayout,type AreaBand,type CheckTrigger,type DewSpot,type DressingSpot,type EnemySpot,type HintBand,type LevelLayout,type QuestDef,type SignSpot,type SouvenirSpot,type StakeSpot,type WinCond} from './content/types';
+import {cloneLayout,type AreaBand,type CheckTrigger,type DewSpot,type DressingSpot,type EnemySpot,type HintBand,type LevelLayout,type PortalSpot,type QuestDef,type SignSpot,type SouvenirSpot,type StakeSpot,type WinCond} from './content/types';
 import {SlimeSimulation,type Rect} from './physics';
 
 export {WORLD_HEIGHT,WORLD_WIDTH};
@@ -38,6 +39,9 @@ export class Level {
  checks?:CheckTrigger[];
  win?:WinCond;
  dressing:DressingSpot[];
+ portals:PortalSpot[];
+ portalCool=0;
+ ported=false;
  waters:{x:number;y:number;w:number;h:number}[];
  constructor(layout:LevelLayout=FOREST_LAYOUT){
   const data=cloneLayout(layout);
@@ -65,9 +69,38 @@ export class Level {
   this.checks=data.checks;
   this.win=data.win;
   this.dressing=data.dressing??[];
+  this.portals=data.portals??[];
   this.gateOpen=this.plates.length<2||data.gate.w<=2;
-  this.bossDown=!data.enemies.some(e=>e.kind==='picnic');
+  this.bossDown=!data.enemies.some(e=>ENEMIES[e.kind]?.gate);
   if(this.gateOpen)this.solids=[...data.base];
+ }
+ applyLayout(layout:LevelLayout){
+  const data=cloneLayout(layout);
+  this.id=data.id;
+  this.width=data.width;
+  this.height=data.height;
+  this.fallY=data.fallY;
+  this.completeX=data.completeX;
+  this.water=data.water;
+  this.waters=data.waters??[];
+  this.plates=data.plates;
+  this.gate=data.gate;
+  this.base=data.base;
+  this.solids=this.gateOpen||data.gate.w<=2?[...data.base]:[...data.base,data.gate];
+  this.checkpoint=data.checkpoint;
+  this.exit=data.exit;
+  this.dew=data.dew;
+  this.souvenirs=data.souvenirs;
+  this.stakes=data.stakes;
+  this.enemies=data.enemies;
+  this.quests=data.quests;
+  this.areas=data.areas;
+  this.signs=data.signs;
+  this.hints=data.hints;
+  this.checks=data.checks;
+  this.win=data.win;
+  this.dressing=data.dressing??[];
+  this.portals=data.portals??[];
  }
  get mainDew(){return this.dew.filter(d=>d.role!=='bonus');}
  get mainDewDone(){return this.mainDew.length>0&&this.mainDew.every(d=>d.got);}
@@ -120,11 +153,28 @@ export class Level {
   if((this.plates.length<2||this.gateCharge>=1)&&dewReady&&!this.gateOpen){this.gateOpen=true;this.syncSolids(sim);}
   for(const d of this.dew)if(!d.got&&sim.particles.some(p=>(p.x-d.x)**2+(p.y-d.y)**2<25**2))d.got=true;
   for(const s of this.souvenirs)if(!s.got&&sim.particles.some(p=>(p.x-s.x)**2+(p.y-s.y)**2<28**2))s.got=true;
+  this.stepPortals(sim,dt);
   const win=this.win;
   const atLine=c.x>(win?.kind==='line'?win.x:this.completeX);
   const atZone=win?.kind==='zone'&&c.x>win.x&&c.x<win.x+win.w&&c.y>win.y&&c.y<win.y+win.h;
   if((win?.kind==='zone'?atZone:atLine)&&groups.length===1&&this.gateOpen&&this.bossDown)this.complete=true;
   if(sim.particles.some(p=>!Number.isFinite(p.x)||p.y>this.fallY)){this.fell=true;this.respawn(sim);}
+ }
+ protected stepPortals(sim:SlimeSimulation,dt:number){
+  this.portalCool=Math.max(0,this.portalCool-dt);
+  this.ported=false;
+  if(!this.portals.length||this.portalCool>0)return;
+  const grounded=sim.particles.some(p=>p.group===sim.activeGroup&&p.ground);
+  if(!grounded)return;
+  for(const gate of this.portals){
+   if(!sim.particles.some(p=>p.group===sim.activeGroup&&Math.abs(p.x-gate.x)<70&&p.y>gate.y-200&&p.y<gate.y+16))continue;
+   const dest=this.portals.find(o=>o.pair===gate.pair&&o.id!==gate.id);
+   if(!dest)continue;
+   sim.plant(dest.x,dest.y-48);
+   this.portalCool=1.15;
+   this.ported=true;
+   return;
+  }
  }
  respawn(sim:SlimeSimulation){sim.reset(this.checkpoint.x,this.checkpoint.y);sim.solids=this.solids;sim.water=this.waterAt(this.checkpoint.x,this.checkpoint.y)??this.water;}
  hint(x:number,groups:number,y=600):string{

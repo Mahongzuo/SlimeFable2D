@@ -1,0 +1,26 @@
+角色56.png
+size: 872,908
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+yz
+  bounds: 698, 498, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+tui2
+  bounds: 0, 512, 262, 320
+  offsets: 0, 0, 262, 320
+  index: -1
+head
+  bounds: 266, 698, 228, 210
+  offsets: 0, 0, 228, 210
+  index: -1
+tui1
+  bounds: 512, 266, 182, 342
+  offsets: 0, 0, 182, 342
+  index: -1
+body
+  bounds: 0, 0, 508, 357
+  offsets: 0, 0, 508, 357
+  index: -1

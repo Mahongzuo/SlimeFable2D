@@ -1,0 +1,50 @@
+角色17.png
+size: 1014,1285
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+chibangL_1
+  bounds: 0, 0, 303, 350
+  offsets: 0, 0, 303, 350
+  index: -1
+handR
+  bounds: 640, 636, 174, 111
+  offsets: 0, 0, 174, 111
+  index: -1
+yz
+  bounds: 636, 818, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+leg2
+  bounds: 519, 1018, 102, 267
+  offsets: 0, 0, 102, 267
+  index: -1
+leg1
+  bounds: 899, 519, 115, 280
+  offsets: 0, 0, 115, 280
+  index: -1
+head
+  bounds: 197, 899, 318, 158
+  offsets: 0, 0, 318, 158
+  index: -1
+handL
+  bounds: 429, 640, 203, 113
+  offsets: 0, 0, 203, 113
+  index: -1
+chibangL_2
+  bounds: 354, 0, 282, 372
+  offsets: 0, 0, 282, 372
+  index: -1
+footL
+  bounds: 757, 429, 98, 130
+  offsets: 0, 0, 98, 130
+  index: -1
+body
+  bounds: 0, 640, 193, 350
+  offsets: 0, 0, 193, 350
+  index: -1
+body_bird
+  bounds: 640, 197, 255, 228
+  offsets: 0, 0, 255, 228
+  index: -1

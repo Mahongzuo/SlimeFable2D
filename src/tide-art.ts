@@ -5,6 +5,7 @@ import type {Rect,SlimeSimulation} from './physics';
 import type {TideLevel} from './tide-level';
 import type {WaterfallSim} from './waterfall';
 import {drawWater} from './water-view';
+import {drawPortals} from './kit/view';
 type C=CanvasRenderingContext2D;
 type Critter={x:number;y:number;phase:number;span:number;s:number};
 type PropKind='weed'|'coral'|'fan'|'anemone'|'bloom';
@@ -343,7 +344,7 @@ export class TideArt {
   c.strokeStyle=`rgba(154,220,255,${.3+pulse*.25})`;c.lineWidth=2;
   c.beginPath();c.moveTo(cx-54,floor-6);c.quadraticCurveTo(cx,e.y+22,cx+54,floor-6);c.stroke();
   c.restore();
-  this.sign(c,e.x+36,floor-8,'终点','→');
+  this.sign(c,e.x+36-camera,floor-8,'终点','→');
  }
  /** Drop props whose feet sit in keyed-out water past the painted island. */
  private clipFloraToPaint(){
@@ -404,6 +405,7 @@ export class TideArt {
   this.sign(c,860-camera,1012,'西廊','↑');
   this.sign(c,1580-camera,428,'终点','→');
   this.exitGate(c,camera,time);
+  drawPortals(c,this.level.portals,camera,time);
   for(const j of this.jellies){
    const x=j.x+Math.sin(time*.5+j.phase)*j.span-camera;
    const y=j.y+Math.cos(time*.38+j.phase)*20;

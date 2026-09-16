@@ -1,0 +1,16 @@
+Monster098.png
+size:1024,512
+filter:Linear,Linear
+pma:true
+handL
+bounds:527,288,302,198
+offsets:7,0,309,198
+handR
+bounds:238,231,287,255
+offsets:0,0,306,255
+head
+bounds:2,2,234,484
+offsets:11,0,254,484
+yz
+bounds:238,147,164,82
+offsets:5,4,174,90

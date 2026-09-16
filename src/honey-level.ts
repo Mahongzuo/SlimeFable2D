@@ -1,4 +1,5 @@
 import {CAMY_HONEY,FEATURES_HONEY} from './catalog';
+import type {LevelLayout} from './content/types';
 import {Level} from './level';
 import {SlimeSimulation,type Rect} from './physics';
 import {WaxPlatform} from './wax';
@@ -60,7 +61,11 @@ export class HoneyLevel extends Level {
  override solids:Rect[]=[];
  override souvenirs=[];
  override stakes=[];
- override enemies=[{kind:'hive',x:4180,y:600,id:'hive-2061',patrol:70}];
+ override enemies=[
+  {kind:'bear',x:1340,y:600,id:'bear-a',patrol:50},
+  {kind:'eboar',x:2560,y:600,id:'eboar-a',patrol:60},
+  {kind:'hive',x:4180,y:600,id:'hive-2061',patrol:70},
+ ];
  override quests=[];
  override dew=[
   {x:520,y:548,got:false},
@@ -73,7 +78,17 @@ export class HoneyLevel extends Level {
  inRefill(x:number,y:number){
   return this.pools.some(p=>x>p.bounds.x-10&&x<p.bounds.x+p.bounds.w+10&&y>p.bounds.y-36&&y<p.bounds.y+p.bounds.h+30);
  }
- constructor(){super();this.bossDown=true;this.sync();}
+ constructor(layout?:LevelLayout){
+  super();
+  this.bossDown=true;
+  if(layout){
+   this.base=layout.base.map(r=>({...r}));
+   this.dew=layout.dew.map(d=>({...d}));
+   if(layout.enemies.length)this.enemies=layout.enemies.map(e=>({...e,patrol:e.patrol??50}));
+   this.checkpoint={...layout.checkpoint};
+  }
+  this.sync();
+ }
  private occupied(sim:SlimeSimulation,plate:{x:number;y:number},pad=38){
   return sim.groups().some(g=>sim.particles.filter(p=>p.group===g&&p.ground&&Math.abs(p.x-plate.x)<pad&&Math.abs(p.y-plate.y)<8).length>6);
  }
@@ -109,6 +124,7 @@ export class HoneyLevel extends Level {
   if(c.x>2970&&c.x<3140&&c.y<370&&this.checkpoint.x<2970)this.checkpoint={x:3034,y:290};
   if(c.x>4200&&this.latchOn)this.checkpoint={x:4280,y:540};
   for(const d of this.dew)if(!d.got&&sim.particles.some(p=>Math.hypot(p.x-d.x,p.y-d.y)<25))d.got=true;
+  this.stepPortals(sim,dt);
   if(c.x>4920&&sim.groups().length===1&&this.latchOn)this.complete=true;
   if(sim.particles.some(p=>!Number.isFinite(p.x)||p.y>980))this.respawn(sim);
  }

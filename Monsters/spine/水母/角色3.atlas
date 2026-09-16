@@ -1,0 +1,26 @@
+角色3.png
+size: 996,1090
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+tentacleL
+  bounds: 860, 0, 136, 394
+  offsets: 0, 0, 136, 394
+  index: -1
+yz
+  bounds: 0, 1000, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+tentacleM
+  bounds: 516, 0, 178, 490
+  offsets: 0, 0, 178, 490
+  index: -1
+head
+  bounds: 0, 0, 512, 512
+  offsets: 0, 0, 512, 512
+  index: -1
+body
+  bounds: 0, 516, 569, 340
+  offsets: 0, 0, 569, 340
+  index: -1

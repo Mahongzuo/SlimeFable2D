@@ -1,0 +1,34 @@
+角色1.png
+size: 805,775
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+handR
+  bounds: 277, 0, 294, 198
+  offsets: 0, 0, 294, 198
+  index: -1
+yz
+  bounds: 631, 384, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+head
+  bounds: 202, 277, 176, 168
+  offsets: 0, 0, 176, 168
+  index: -1
+handL
+  bounds: 0, 575, 273, 200
+  offsets: 0, 0, 273, 200
+  index: -1
+footL
+  bounds: 384, 449, 129, 178
+  offsets: 0, 0, 129, 178
+  index: -1
+footR
+  bounds: 449, 202, 130, 178
+  offsets: 0, 0, 130, 178
+  index: -1
+body
+  bounds: 0, 0, 240, 273
+  offsets: 0, 0, 240, 273
+  index: -1

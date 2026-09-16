@@ -30,7 +30,7 @@ export const WIND_LAYOUT:LevelLayout={
   {x:180,y:1500,w:220,h:32,kind:'stone',oneWay:true},
   {x:200,y:1360,w:220,h:32,kind:'stone',oneWay:true},
   {x:80,y:1240,w:700,h:32,kind:'stone',oneWay:true},
-  {x:920,y:1680,w:400,h:22,kind:'stone'},
+  {x:940,y:1680,w:380,h:22,kind:'stone'},
   {x:1320,y:1680,w:240,h:32,kind:'stone'},
   {x:1560,y:1732,w:160,h:24,kind:'pool'},
   {x:1720,y:1680,w:480,h:32,kind:'stone'},
@@ -62,7 +62,11 @@ export const WIND_LAYOUT:LevelLayout={
   {x:800,y:720,got:false,role:'main',skin:'wind'},
   {x:1400,y:220,got:false,role:'main',skin:'wind'},
  ],
- enemies:[],
+ enemies:[
+  {id:'escort-heath',kind:'escort',x:700,y:1680,patrol:80},
+  {id:'herder-east',kind:'herder',x:2200,y:1680,patrol:90},
+  {id:'grey-temple',kind:'grey',x:1360,y:260,patrol:70},
+ ],
  souvenirs:[{id:'windbell',name:'风铃碎片',x:400,y:1200,got:false}],
  stakes:[],
  areas:[

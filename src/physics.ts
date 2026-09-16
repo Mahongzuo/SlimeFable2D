@@ -33,6 +33,15 @@ export class SlimeSimulation {
  private cachedAt=-1;
  private cached=new Map<number,BodyCluster>();
  constructor(x:number,y:number,solids:Rect[]){this.solids=solids;this.reset(x,y);}
+ shift(dx:number,dy:number){
+  for(const p of this.particles){p.x+=dx;p.y+=dy;p.ox+=dx;p.oy+=dy;p.vx*=.2;p.vy=Math.min(p.vy,40);}
+  this.cached.clear();this.cachedAt=-1;
+ }
+ plant(x:number,y:number){
+  const c=this.center();
+  this.shift(x-c.x,y-c.y);
+  for(const p of this.particles){p.vx*=.1;p.vy=0;p.oy=p.y-6;p.ground=true;}
+ }
  reset(x:number,y:number){
   this.particles=[];this.activeGroup=0;this.jumpCooldowns.clear();this.groundedUntil.clear();this.jumpStarted.clear();this.jumps.clear();this.walls.clear();this.wallUntil.clear();this.squashed.clear();this.jelly.clear();
   this.strayAcc.clear();this.ghost.clear();this.ghostUntil=0;this.cached.clear();this.cachedAt=-1;this.recalled=false;
@@ -43,7 +52,8 @@ export class SlimeSimulation {
   }
  }
  groups(){return [...new Set(this.particles.map(p=>p.group))];}
- center(group=this.activeGroup){return this.cluster(group).coreC;}
+ center(group=this.activeGroup){return this.mean(this.particles.filter(p=>p.group===group));}
+ flat(group=this.activeGroup){return !!this.squashed.get(group);}
  private mean(ps:Particle[]){
   let x=0,y=0,vx=0,vy=0;
   for(const p of ps){x+=p.x;y+=p.y;vx+=p.vx;vy+=p.vy;}
@@ -51,12 +61,12 @@ export class SlimeSimulation {
   return {x:x/n,y:y/n,vx:vx/n,vy:vy/n,n:ps.length};
  }
  private blocked(ax:number,ay:number,bx:number,by:number){
+  const minX=Math.min(ax,bx),maxX=Math.max(ax,bx),minY=Math.min(ay,by),maxY=Math.max(ay,by);
+  const walls=this.solids.filter(r=>!r.oneWay&&r.kind!=='boundary'&&r.x<maxX&&r.x+r.w>minX&&r.y<maxY&&r.y+r.h>minY);
+  if(!walls.length)return false;
   for(let t=0;t<=1;t+=.05){
    const x=ax+(bx-ax)*t,y=ay+(by-ay)*t;
-   for(const r of this.solids){
-    if(r.oneWay||r.kind==='boundary')continue;
-    if(x>r.x&&x<r.x+r.w&&y>r.y&&y<r.y+r.h)return true;
-   }
+   for(const r of walls)if(x>r.x&&x<r.x+r.w&&y>r.y&&y<r.y+r.h)return true;
   }
   return false;
  }
@@ -69,12 +79,6 @@ export class SlimeSimulation {
   for(const p of ps){
    const d=Math.hypot(p.x-mx,p.y-my);
    if(d>STRAY_FAR||(d>STRAY_GAP&&this.blocked(p.x,p.y,mx,my)))stray.add(p);
-  }
-  if(stray.size>ps.length*.65){
-   const left=ps.filter(p=>p.x<=mx),right=ps.filter(p=>p.x>mx);
-   const main=left.length>=right.length?left:right;
-   stray.clear();
-   for(const p of ps)if(!main.includes(p))stray.add(p);
   }
   const core=ps.filter(p=>!stray.has(p));
   return {coreC:this.mean(core.length?core:ps),strayC:this.mean(stray.size?[...stray]:core),stray};
@@ -97,6 +101,7 @@ export class SlimeSimulation {
  private recallStrays(dt:number){
   if(this.time>=this.ghostUntil&&this.ghost.size)this.ghost.clear();
   for(const g of this.groups()){
+   if(this.squashed.get(g)){this.strayAcc.set(g,0);continue;}
    const chunk=this.body(g);
    if(chunk.stray.size)this.strayAcc.set(g,(this.strayAcc.get(g)??0)+dt);
    else this.strayAcc.set(g,0);
@@ -183,7 +188,8 @@ export class SlimeSimulation {
   for(const s of this.solids){
    if(s.oneWay){
     if(this.dropThrough&&p.group===this.activeGroup)continue;
-    if(p.oy<=s.y-R+.01&&p.vy>=0&&p.x>s.x&&p.x<s.x+s.w&&p.y>=s.y-R&&p.y<s.y+s.h){p.y=s.y-R;p.ground=true;}
+    const top=s.y-R;
+    if(p.vy>=0&&p.x>s.x&&p.x<s.x+s.w&&p.oy<=top+.01&&p.y>=top){p.y=top;p.ground=true;}
     continue;
    }
    const l=s.x-R,r=s.x+s.w+R,t=s.y-R,b=s.y+s.h+R;
@@ -196,8 +202,9 @@ export class SlimeSimulation {
  step(dt:number,input:Input){
   this.time+=dt;
   this.recallStrays(dt);
-  this.dropThrough=!!input.squeeze||(input.climb??0)<0;
-  const groups=this.groups(),chunks=new Map(groups.map(g=>[g,this.body(g)])),centers=new Map(groups.map(g=>[g,chunks.get(g)!.coreC]));
+  const onOneWay=this.particles.some(p=>p.group===this.activeGroup&&p.ground&&this.solids.some(s=>s.oneWay&&p.x>s.x&&p.x<s.x+s.w&&p.y>=s.y-R-4&&p.y<=s.y+s.h));
+  this.dropThrough=(!!input.squeeze||(input.climb??0)<0)&&onOneWay;
+  const groups=this.groups(),centers=new Map(groups.map(g=>[g,this.center(g)]));
   const groundedGroups=new Set(this.particles.filter(p=>p.ground).map(p=>p.group));
   const constrained=new Map<number,boolean>();
   for(const g of groups){
@@ -228,7 +235,7 @@ export class SlimeSimulation {
   let touching=0;
   for(const p of this.particles)if(p.group===this.activeGroup&&p.ground)touching++;
   // Contact grace belongs to a body, never to whichever body is selected next.
-  for(const group of groups){const body=this.particles.filter(p=>p.group===group),contact=body.filter(p=>p.ground).length/body.length;if(contact>.035&&this.center(group).vy>=-40&&this.time-(this.jumpStarted.get(group)??-99)>.18){this.groundedUntil.set(group,this.time+.10);this.jumps.set(group,0);}}
+  for(const group of groups){const body=this.particles.filter(p=>p.group===group),contact=body.filter(p=>p.ground).length/body.length;if(contact>.035&&(centers.get(group)?.vy??0)>=-40&&this.time-(this.jumpStarted.get(group)??-99)>.18){this.groundedUntil.set(group,this.time+.10);this.jumps.set(group,0);}}
   const center=centers.get(this.activeGroup)!;
   const wet=!!this.water&&center.x>this.water.x&&center.x<this.water.x+this.water.w&&center.y>this.water.y-15;
   const wall=this.walls.get(this.activeGroup),attached=this.time<(this.wallUntil.get(this.activeGroup)??0)&&!!wall;
@@ -236,7 +243,7 @@ export class SlimeSimulation {
   const jump=input.jump&&this.time>=(this.jumpCooldowns.get(this.activeGroup)??0)&&((this.jumps.get(this.activeGroup)??0)<2||wet||attached);
   if(jump){this.jumps.set(this.activeGroup,(this.jumps.get(this.activeGroup)??0)+1);this.jumpCooldowns.set(this.activeGroup,this.time+.14);this.groundedUntil.set(this.activeGroup,0);this.jumpStarted.set(this.activeGroup,this.time);this.wallUntil.set(this.activeGroup,0);const j=this.jelly.get(this.activeGroup)!;j.v-=2;}
   for(const p of this.particles){
-   const chunk=chunks.get(p.group)!,c=chunk.stray.has(p)?chunk.strayC:chunk.coreC,active=p.group===this.activeGroup,squeeze=!!constrained.get(p.group);
+   const c=centers.get(p.group)!,active=p.group===this.activeGroup,squeeze=!!constrained.get(p.group);
    p.ox=p.x;p.oy=p.y;
    const cohesion=squeeze?6.5:105;
    p.vx+=(c.x-p.x)*cohesion*dt;

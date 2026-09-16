@@ -1,0 +1,26 @@
+角色40.png
+size: 1237,1331
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+yz
+  bounds: 0, 1241, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+leg2
+  bounds: 937, 0, 300, 296
+  offsets: 0, 0, 300, 296
+  index: -1
+leg1
+  bounds: 516, 0, 259, 355
+  offsets: 0, 0, 259, 355
+  index: -1
+head
+  bounds: 0, 0, 512, 512
+  offsets: 0, 0, 512, 512
+  index: -1
+body
+  bounds: 0, 516, 575, 417
+  offsets: 0, 0, 575, 417
+  index: -1

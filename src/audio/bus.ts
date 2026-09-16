@@ -2,12 +2,12 @@ import {asset} from '../asset';
 
 export type Cue=
  |'slash'|'spit'|'hurt'|'die'|'swallow'|'splash'|'swim'|'grass'|'dew'|'jump'|'land'|'dodge'
- |'summon'|'melon'|'smash'|'ult'|'step'
+ |'summon'|'melon'|'smash'|'ult'|'step'|'howl'|'charge'|'parry'|'hawk'|'drain'|'dragon'
 
 const FILES:Record<string,string>={
  slash:'/assets/audio/sfx/attack.ogg',
  spit:'/assets/audio/sfx/shot.ogg',
- hurt:'/assets/audio/sfx/hurt.ogg',
+ hurt:'/assets/audio/sfx/soon/hit.mp3',
  die:'/assets/audio/sfx/death.ogg',
  swallow:'/assets/audio/sfx/ue-swallow.ogg',
  splash:'/assets/audio/sfx/water-in.ogg',
@@ -18,10 +18,16 @@ const FILES:Record<string,string>={
  land:'/assets/audio/sfx/landing.ogg',
  dodge:'/assets/audio/sfx/dodge.ogg',
  summon:'/assets/audio/sfx/call.ogg',
- melon:'/assets/audio/sfx/melon.ogg',
+ melon:'/assets/audio/sfx/soon/ranged.mp3',
  smash:'/assets/audio/sfx/smash.ogg',
- ult:'/assets/audio/sfx/ult.ogg',
+ ult:'/assets/audio/sfx/soon/magic.mp3',
  step:'/assets/audio/sfx/ue-crawl.ogg',
+ howl:'/assets/audio/sfx/call.ogg',
+ charge:'/assets/audio/sfx/smash.ogg',
+ parry:'/assets/audio/sfx/attack.ogg',
+ hawk:'/assets/audio/sfx/soon/ranged.mp3',
+ drain:'/assets/audio/sfx/soon/magic.mp3',
+ dragon:'/assets/audio/sfx/soon/magic.mp3',
 };
 
 const GAP:Partial<Record<Cue,number>>={step:.04,swim:.04,grass:.28,land:.18,slash:.12,jump:.18,swallow:.35,die:.4,dew:.22};
@@ -132,7 +138,7 @@ export class AudioBus {
  setBgm(name:'explore'|'boss'|'none',soft=false){
   this.wantBgm=name;this.wantSoft=soft;
   if(!this.enabled||!this.ctx||!this.music)return;
-  const track=name==='none'?'none':'explore';
+  const track=name==='none'?'none':name;
   const vol=soft?.4:.85;
   if(this.bgmGain)this.bgmGain.gain.value=vol;
   if(track===this.bgmName){
@@ -142,13 +148,14 @@ export class AudioBus {
   this.bgmName=track;
   this.bgmSrc?.stop();this.bgmSrc=undefined;
   if(track==='none'){this.bgmEl?.pause();return;}
-  this.playFileBgm(vol);
+  this.playFileBgm(vol,track);
  }
 
- private playFileBgm(vol:number){
+ private playFileBgm(vol:number,track:'explore'|'boss'='explore'){
   if(!this.ctx||!this.music)return;
+  const url=track==='boss'?asset('assets/audio/bgm/soon-boss.mp3'):asset('assets/audio/bgm/explore.ogg');
   if(!this.bgmEl){
-   const el=new Audio(this.bgmUrl);
+   const el=new Audio(url);
    el.loop=true;el.preload='auto';el.crossOrigin='anonymous';
    this.bgmEl=el;
    try{
@@ -159,8 +166,11 @@ export class AudioBus {
    }catch{
     el.volume=Math.max(0,Math.min(1,this.musicVol*vol));
    }
-  }else if(this.bgmGain)this.bgmGain.gain.value=vol;
-  else this.bgmEl.volume=Math.max(0,Math.min(1,this.musicVol*vol));
+  }else{
+   if(this.bgmGain)this.bgmGain.gain.value=vol;
+   else this.bgmEl.volume=Math.max(0,Math.min(1,this.musicVol*vol));
+   if(!this.bgmEl.src.includes(track==='boss'?'soon-boss.mp3':'explore.ogg'))this.bgmEl.src=url;
+  }
   this.bgmEl.currentTime=this.bgmEl.currentTime||0;
   void this.bgmEl.play().catch(()=>{/* wait for a gesture */});
  }

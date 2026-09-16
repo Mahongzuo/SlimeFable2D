@@ -1,0 +1,26 @@
+角色180.png
+size: 1093,1228
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+foot
+  bounds: 516, 919, 185, 309
+  offsets: 0, 0, 185, 309
+  index: -1
+yz
+  bounds: 919, 705, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+head
+  bounds: 0, 641, 512, 512
+  offsets: 0, 0, 512, 512
+  index: -1
+hand
+  bounds: 641, 516, 274, 353
+  offsets: 0, 0, 274, 353
+  index: -1
+body
+  bounds: 0, 0, 637, 466
+  offsets: 0, 0, 637, 466
+  index: -1

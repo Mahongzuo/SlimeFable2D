@@ -1,0 +1,42 @@
+角色74.png
+size: 948,1152
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+handR
+  bounds: 0, 0, 297, 288
+  offsets: 0, 0, 297, 288
+  index: -1
+yz
+  bounds: 725, 510, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+sdL
+  bounds: 175, 952, 167, 200
+  offsets: 0, 0, 167, 200
+  index: -1
+head
+  bounds: 376, 725, 130, 167
+  offsets: 0, 0, 130, 167
+  index: -1
+handL
+  bounds: 0, 301, 296, 236
+  offsets: 0, 0, 296, 236
+  index: -1
+footL
+  bounds: 0, 725, 171, 308
+  offsets: 0, 0, 171, 308
+  index: -1
+footR
+  bounds: 541, 0, 180, 303
+  offsets: 0, 0, 180, 303
+  index: -1
+body
+  bounds: 301, 300, 201, 275
+  offsets: 0, 0, 201, 275
+  index: -1
+sdR
+  bounds: 725, 175, 223, 197
+  offsets: 0, 0, 223, 197
+  index: -1

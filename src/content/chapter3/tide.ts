@@ -38,33 +38,24 @@ export const TIDE_LAYOUT:LevelLayout={
  checkpoint:{x:800,y:1214},
  exit:{x:1700,y:150,w:310,h:150},
  base:[
-  // 底层浅滩 (0-430, 645) · 中间挖出出生水池
   {x:0,y:1290,w:450,h:156,kind:'stone'},
   {x:450,y:1370,w:200,h:76,kind:'pool'},
   {x:650,y:1290,w:210,h:156,kind:'stone'},
-  {x:860,y:1330,w:1700,h:116,kind:'stone'},          // 主地面 (430-1280, 665)
-  // 一层 · 东侧石台 (840-1130, 565) 与右侧高阶 (1130-1280, 542)
-  {x:1680,y:1130,w:580,h:186,kind:'stone'},
+  {x:860,y:1330,w:1700,h:116,kind:'stone'},
+  {x:1664,y:1104,w:480,h:66,kind:'stone'},
   {x:2260,y:1084,w:300,h:232,kind:'stone'},
-  // 二层 · 石桥 (400-840, 506)；桥上方是拱肩石块 (560-700, 326→400)，两段跳后抓右壁爬上
-  {x:800,y:1012,w:880,h:56,kind:'stone'},
+  {x:800,y:992,w:880,h:56,kind:'stone'},
   {x:1120,y:652,w:280,h:150,kind:'stone'},
-  // 三层 · 西廊长台 (130-560, 326)
   {x:260,y:652,w:860,h:150,kind:'stone'},
-  // 三层 · 圆窗石台 (770-1085, 380) · 中间挖出潮池
   {x:1540,y:760,w:60,h:120,kind:'stone'},
   {x:1600,y:830,w:160,h:50,kind:'pool'},
   {x:1760,y:760,w:410,h:120,kind:'stone'},
-  // 四层 · 西侧小台 (250-350, 270)
-  {x:500,y:540,w:200,h:112,kind:'stone'},
-  // 四层 · 中央长台 (590-1010, 214)
-  {x:1180,y:428,w:520,h:172,kind:'stone'},
+  {x:688,y:528,w:200,h:112,kind:'stone'},
+  {x:1120,y:416,w:520,h:66,kind:'stone'},
   {x:1700,y:428,w:320,h:102,kind:'stone'},
-  // 五层 · 西侧巨石顶面；右侧空档留给四层 hop，不再用整块厚 AABB 封死
-  {x:470,y:292,w:540,h:32,kind:'stone'},
-  // 五层 · 东侧残拱台 (850-1005, 146) 与东壁阶 (1060-1230, 200)
-  {x:1700,y:292,w:310,h:136,kind:'stone'},
-  {x:2120,y:400,w:340,h:120,kind:'stone'},
+  {x:464,y:288,w:600,h:60,kind:'stone'},
+  {x:1696,y:288,w:310,h:66,kind:'stone'},
+  {x:2128,y:400,w:340,h:120,kind:'stone'},
   {x:-30,y:-200,w:30,h:1900,kind:'boundary'},
   {x:TIDE_WIDTH,y:-200,w:30,h:1900,kind:'boundary'},
  ],
@@ -79,8 +70,11 @@ export const TIDE_LAYOUT:LevelLayout={
   {x:2300,y:358,got:false,role:'main'},
  ],
  enemies:[
-  {id:'cap-tide',kind:'cap',x:1960,y:1130,patrol:120},
+  {id:'cap-tide',kind:'cap',x:1940,y:1128,patrol:120},
   {id:'spore-tide',kind:'spore',x:1500,y:428,patrol:60},
+  {id:'cent-gallery',kind:'cent',x:1400,y:428,patrol:90},
+  {id:'wolfb-bridge',kind:'wolfb',x:1880,y:1130,patrol:70},
+  {id:'pale-gate',kind:'pale',x:580,y:292,patrol:70},
  ],
  souvenirs:[{id:'tidepoem',name:'潮诗',x:600,y:498,got:false}],
  stakes:[],

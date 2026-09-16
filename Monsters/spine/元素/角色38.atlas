@@ -1,0 +1,22 @@
+角色38.png
+size: 794,996
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+handR
+  bounds: 488, 0, 306, 255
+  offsets: 0, 0, 306, 255
+  index: -1
+yz
+  bounds: 259, 488, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+head
+  bounds: 0, 0, 254, 484
+  offsets: 0, 0, 254, 484
+  index: -1
+handL
+  bounds: 0, 798, 309, 198
+  offsets: 0, 0, 309, 198
+  index: -1

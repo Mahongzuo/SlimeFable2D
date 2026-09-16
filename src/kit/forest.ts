@@ -25,6 +25,8 @@ export const FOREST_KIT:KitEntry[]=[
  {id:'enemy-vine',chapter:'forest',category:'enemy',name:'藤鞭蕨',place:'point',play:'actor',actorKind:'vine',defaults:{},draw:'canvas',mark:'苔'},
  {id:'enemy-pig',chapter:'forest',category:'enemy',name:'野餐猪',place:'point',play:'actor',actorKind:'pig',defaults:{},draw:'canvas',mark:'苔'},
  {id:'enemy-picnic',chapter:'forest',category:'enemy',name:'南宫师姐',place:'point',play:'actor',actorKind:'picnic',defaults:{},draw:'canvas',mark:'苔'},
+ {id:'enemy-wolf',chapter:'forest',category:'enemy',name:'霜脊狼',place:'point',play:'actor',actorKind:'wolf',defaults:{},draw:'canvas',mark:'苔'},
+ {id:'enemy-boar',chapter:'forest',category:'enemy',name:'杂兵猪',place:'point',play:'actor',actorKind:'boar',defaults:{},draw:'canvas',mark:'苔'},
  {id:'critter-moth',chapter:'forest',category:'critter',name:'蛾',place:'point',play:'dress',defaults:{s:1},draw:'canvas',mark:'苔'},
  {id:'critter-snail',chapter:'forest',category:'critter',name:'蜗牛',place:'point',play:'dress',defaults:{s:1},draw:'canvas',mark:'苔'},
  {id:'sign-post',chapter:'forest',category:'sign',name:'路牌',place:'point',play:'sign',defaults:{},draw:'canvas',mark:'苔'},

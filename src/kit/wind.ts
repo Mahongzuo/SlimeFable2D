@@ -10,4 +10,7 @@ export const WIND_KIT:KitEntry[]=[
  {id:'wind-weed',chapter:'wind',category:'flora',name:'荒原草',place:'point',play:'dress',interact:'sway',defaults:{s:1},draw:'image',src:'assets/wind/weed.png',mark:'风'},
  {id:'dew-wind',chapter:'wind',category:'collect',name:'风籽',place:'point',play:'pickup',pickup:'dew',dewSkin:'wind',defaults:{},draw:'canvas',mark:'风'},
  {id:'souvenir-windbell',chapter:'wind',category:'collect',name:'风铃碎片',place:'point',play:'pickup',pickup:'souvenir',souvenirId:'windbell',defaults:{},draw:'canvas',mark:'风'},
+ {id:'enemy-escort',chapter:'wind',category:'enemy',name:'斗笠镖师',place:'point',play:'actor',actorKind:'escort',defaults:{},draw:'canvas',mark:'风'},
+ {id:'enemy-herder',chapter:'wind',category:'enemy',name:'牧鹰人',place:'point',play:'actor',actorKind:'herder',defaults:{},draw:'canvas',mark:'风'},
+ {id:'enemy-grey',chapter:'wind',category:'enemy',name:'灰冠风修',place:'point',play:'actor',actorKind:'grey',defaults:{},draw:'canvas',mark:'风'},
 ];

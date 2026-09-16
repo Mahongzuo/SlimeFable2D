@@ -13,4 +13,6 @@ export const HONEY_KIT:KitEntry[]=[
  {id:'dew-honey',chapter:'honey',category:'collect',name:'蜜露',place:'point',play:'pickup',pickup:'dew',dewSkin:'honey',defaults:{},draw:'canvas',mark:'蜜'},
  {id:'critter-bee',chapter:'honey',category:'critter',name:'蜂',place:'point',play:'dress',defaults:{s:1},draw:'image',src:'assets/honey/bee.png',mark:'蜜'},
  {id:'critter-ant',chapter:'honey',category:'critter',name:'蚁',place:'point',play:'dress',defaults:{s:1},draw:'image',src:'assets/honey/ant.png',mark:'蜜'},
+ {id:'enemy-bear',chapter:'honey',category:'enemy',name:'裂纹熊',place:'point',play:'actor',actorKind:'bear',defaults:{},draw:'canvas',mark:'蜜'},
+ {id:'enemy-eboar',chapter:'honey',category:'enemy',name:'毒纹猪',place:'point',play:'actor',actorKind:'eboar',defaults:{},draw:'canvas',mark:'蜜'},
 ];

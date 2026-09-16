@@ -1,6 +1,6 @@
 import {isolateSprite,keyedSprite} from '../art-key';
 import {asset} from '../asset';
-import type {DressingSpot} from '../content/types';
+import type {DressingSpot,PortalSpot} from '../content/types';
 import type {SlimeSimulation} from '../physics';
 import type {KitEntry} from './defs';
 import {kitById} from './register';
@@ -11,7 +11,7 @@ type Sheet=HTMLImageElement|HTMLCanvasElement;
 
 const imgs=new Map<string,Sheet>();
 const WIND_SRC=['assets/wind/bell.png','assets/wind/mill.png','assets/wind/lantern.png','assets/wind/weed.png','assets/wind/pillar.png','assets/wind/bridge.png'];
-const MIRROR_SRC=['assets/mirror/crystal.png','assets/mirror/lantern.png','assets/mirror/vine.png'];
+const MIRROR_SRC=['assets/mirror/crystal.png','assets/mirror/lantern.png','assets/mirror/vine.png','assets/mirror/portal.png'];
 const KEYED_SRC=[...WIND_SRC,...MIRROR_SRC];
 
 export function hydrateKitImages(){
@@ -22,7 +22,7 @@ export function hydrateKitImages(){
   const img=new Image();
   img.onload=()=>{
    if(KEYED_SRC.includes(src)){
-    try{imgs.set(src,src.includes('bridge')||src.includes('mirror')?keyedSprite(img):isolateSprite(img));}catch{imgs.set(src,img);}
+    try{imgs.set(src,src.includes('portal')?isolateSprite(img):src.includes('bridge')||src.includes('mirror')?keyedSprite(img):isolateSprite(img));}catch{imgs.set(src,img);}
    }
   };
   img.src=asset(src);
@@ -84,6 +84,17 @@ function windBell(c:C,s=1){
  c.fillStyle='#e0b94d';c.beginPath();c.ellipse(0,4,12,9,0,0,Math.PI*2);c.fill();c.restore();
 }
 
+function starGate(c:C,s=1){
+ c.save();c.scale(s,s);
+ c.fillStyle='#4d5870';
+ c.beginPath();c.moveTo(-40,0);c.lineTo(-40,-128);c.quadraticCurveTo(0,-210,40,-128);c.lineTo(40,0);
+ c.lineTo(24,0);c.lineTo(24,-118);c.quadraticCurveTo(0,-186,-24,-118);c.lineTo(-24,0);c.closePath();c.fill();
+ const glow=c.createRadialGradient(0,-96,6,0,-96,46);
+ glow.addColorStop(0,'#e8f6ffdd');glow.addColorStop(.45,'#8ad4ff99');glow.addColorStop(1,'#8ad4ff00');
+ c.fillStyle=glow;c.beginPath();c.ellipse(0,-100,22,52,0,0,Math.PI*2);c.fill();
+ c.restore();
+}
+
 function honeyMound(c:C,s=1){
  const g=c.createLinearGradient(-18,0,18,0);g.addColorStop(0,'#c48a38');g.addColorStop(.5,'#f6d17b');g.addColorStop(1,'#8a4316');
  c.fillStyle=g;c.beginPath();c.moveTo(-22*s,4);c.quadraticCurveTo(-8*s,-18*s,0,-22*s);c.quadraticCurveTo(10*s,-16*s,20*s,4);c.closePath();c.fill();
@@ -101,6 +112,11 @@ function ready(img:Sheet|undefined){
  if(!img)return false;
  if(img instanceof HTMLCanvasElement)return img.width>0;
  return img.complete&&img.naturalWidth>0;
+}
+
+/** True once a kit can render its final look, so thumbnails aren't cached mid-load. */
+export function kitThumbReady(entry:KitEntry){
+ return entry.draw!=='image'||!entry.src||ready(imgs.get(entry.src));
 }
 
 function blit(c:C,src:string,s:number,flip=1,_bw=48,bh=56){
@@ -130,6 +146,10 @@ export function drawKit(c:C,entry:KitEntry,pose:Pose,time=0){
  else if(entry.id==='mirror-crystal')blit(c,entry.src!,s,flip,28,48);
  else if(entry.id==='mirror-lantern')blit(c,entry.src!,s,flip,28,52);
  else if(entry.id==='mirror-vine')blit(c,entry.src!,s,flip,36,56);
+ else if(entry.id==='mirror-portal'){
+  if(ready(imgs.get(entry.src!)))blit(c,entry.src!,s,flip,140,210);
+  else starGate(c,s);
+ }
  else if(entry.src)blit(c,entry.src,s,flip);
  else if(entry.id==='forest-mushroom')mushroom(c,s);
  else if(entry.id==='forest-fern')fern(c,s,flip);
@@ -149,8 +169,11 @@ export function drawKit(c:C,entry:KitEntry,pose:Pose,time=0){
 
 export function drawKitThumb(c:C,entry:KitEntry,w=56,h=44){
  c.clearRect(0,0,w,h);
- c.fillStyle='#234836';c.fillRect(0,0,w,h);
- c.save();c.translate(w/2,h-8);c.scale(.42,.42);
+ const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,'#1d3f35');g.addColorStop(1,'#14302a');
+ c.fillStyle=g;c.fillRect(0,0,w,h);
+ // Fill the tile: ~60% of the width for a default 80-wide rect, anchored near the floor.
+ const k=w/56*.6;
+ c.save();c.translate(w/2,h-h*.18);c.scale(k,k);
  drawKit(c,entry,{x:0,y:0,w:80,h:40,s:entry.defaults.s??1},0);
  c.restore();
 }
@@ -184,5 +207,14 @@ export function drawDressing(c:C,items:DressingSpot[],camera:number,time:number,
   const x=item.x-camera;if(x<-120||x>1400)continue;
   const state=motion.get(item.id);
   drawKit(c,entry,{x,y:item.y,w:item.w,h:item.h,s:item.s,flip:item.flip,sway:state?.sway,bounce:state?.bounce},time);
+ }
+}
+
+export function drawPortals(c:C,portals:PortalSpot[]|undefined,camera:number,time:number){
+ const kit=kitById('mirror-portal');if(!kit||!portals?.length)return;
+ for(const gate of portals){
+  const x=gate.x-camera;if(x<-140||x>1420)continue;
+  const pulse=1+.04*Math.sin(time*3+gate.x*.01);
+  drawKit(c,kit,{x,y:gate.y,s:(gate.s??1)*pulse},time);
  }
 }

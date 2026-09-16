@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {Adventure,bossBar} from './game';
+import {isBoss} from './ai/machine';
 import {ForestArt,W,H} from './art';
 import {HoneyArt} from './honey-art';
 import {HoneyLevel} from './honey-level';
@@ -14,7 +15,7 @@ import {drawWater} from './water-view';
 import {drawHoney} from './honey-view';
 import {CATALOG,FEATURES_FOREST,levelById} from './catalog';
 import {BINDING_LABELS,grantSouvenir,isPlayable,keyLabel,loadProgress,markCleared,nextPlayable,revokeSouvenirs,saveProgress,type KeyAction,type Progress,type SchemePref} from './progress';
-import {bindStamps,deleteSel,drawGizmos,exportMap,isCustomId,listMaps,loadMap,makeSession,moveSel,pick,placeAt,pushUndo,redo,renderHub,renderPalette,resizeWorld,saveMap,screenToWorld,setTool,STAMPS,undo,type EditorSession,type MapDoc} from './editor';
+import {applySelNum,bindStamps,deleteSel,drawGizmos,EDITOR_DRAFT_KEY,EDITOR_MODES,exportMap,frameSel,isCustomId,isOfficialId,listMaps,loadMap,makeSession,MODE_LABEL,moveSel,pick,placeAt,pushUndo,redo,renderHub,renderPalette,resizeWorld,saveMap,saveOfficialOverride,screenToWorld,sessionFromDraft,setMode,setTool,snapSel,snapshotDraft,STAMPS,toggleFold,togglePickLock,undo,type EditorMode,type EditorSession,type MapDoc} from './editor';
 import {renderInspect} from './editor/inspect';
 import {hydrateKitImages} from './kit/view';
 import {reachable} from './wfc/reach';
@@ -70,13 +71,12 @@ document.querySelector('#app')!.innerHTML=`
    <div id="gallery-stack" class="gallery-stack"></div>
    <aside class="gallery-rail-wrap">
     <div class="rail-panel">
-     <div class="gallery-rail-head">关卡层级<small>探索五层 · 发现潮汐的秘密</small></div>
+     <div class="gallery-rail-head">关卡选择</div>
      <div id="gallery-rail" class="gallery-rail"></div>
-     <p class="gallery-rail-foot"><span>⌄</span> 向下探索 · 向上遇见 <span>⌃</span></p>
+     <button id="levels-back" class="gallery-back"><span>←</span> 返回</button>
     </div>
    </aside>
    <img class="gallery-mascot" src="${asset('assets/ui/gallery-slime.png')}" alt=""/>
-   <button id="levels-back" class="gallery-back">返回</button>
   </section>
   <section id="settings" class="overlay hidden" aria-label="操作设置">
    <div class="overlay-card settings-card">
@@ -98,29 +98,42 @@ document.querySelector('#app')!.innerHTML=`
   <section id="editor-hub" class="overlay hidden" aria-label="地图编辑器"></section>
   <section id="editor-ui" class="editor-ui hidden" aria-label="编辑画布">
    <header class="editor-top">
-    <input id="editor-name" maxlength="16" spellcheck="false"/>
-    <button type="button" id="editor-undo">撤销</button>
-    <button type="button" id="editor-redo">重做</button>
-    <label>吸附 <select id="editor-snap"><option value="0">关</option><option value="8">8</option><option value="16" selected>16</option></select></label>
+    <div class="ed-group ed-brand">
+     <button type="button" id="editor-leave" class="ed-btn" title="返回编辑大厅 (Esc)"><span class="ed-ic">←</span>大厅</button>
+     <span class="ed-sep"></span>
+     <input id="editor-name" maxlength="16" spellcheck="false" aria-label="关卡名"/>
+     <em id="editor-dirty" class="ed-dirty" title="有未保存改动">●</em>
+    </div>
+    <div class="ed-group">
+     <button type="button" id="editor-undo" class="ed-btn" title="撤销 (Ctrl+Z)"><span class="ed-ic">↶</span>撤销</button>
+     <button type="button" id="editor-redo" class="ed-btn" title="重做 (Ctrl+Y)"><span class="ed-ic">↷</span>重做</button>
+     <span class="ed-sep"></span>
+     <label class="ed-field">吸附<select id="editor-snap"><option value="0">关</option><option value="8">8</option><option value="16" selected>16</option><option value="32">32</option></select></label>
+    </div>
     <span id="editor-warn" class="editor-warn"></span>
-    <button type="button" id="editor-play" class="primary">试玩</button>
-    <button type="button" id="editor-save">保存</button>
-    <button type="button" id="editor-export">导出</button>
-    <button type="button" id="editor-leave" class="text-button">返回大厅</button>
+    <div class="ed-group">
+     <button type="button" id="editor-export" class="ed-btn" title="导出 JSON"><span class="ed-ic">⇩</span>导出</button>
+     <button type="button" id="editor-save" class="ed-btn" title="保存 (Ctrl+S)"><span class="ed-ic">✓</span>保存</button>
+     <button type="button" id="editor-play" class="ed-btn primary" title="试玩这张图"><span class="ed-ic">▶</span>试玩</button>
+    </div>
    </header>
    <aside id="editor-palette" class="editor-palette"></aside>
    <aside id="editor-inspect" class="editor-inspect"></aside>
    <footer class="editor-bot">
-    <button type="button" data-tool="select">选择</button>
-    <button type="button" data-tool="erase">橡皮</button>
-    <button type="button" data-tool="pan">平移</button>
-    <span id="editor-status"></span>
+    <div class="ed-group ed-tools">
+     <button type="button" class="ed-btn" data-tool="select" title="选择 (V)"><span class="ed-ic">⬚</span>选择</button>
+     <button type="button" class="ed-btn" data-tool="pan" title="平移 (H / 空格 / 中键)"><span class="ed-ic">✥</span>平移</button>
+     <button type="button" class="ed-btn" data-tool="erase" title="橡皮：点一下删掉"><span class="ed-ic">⌫</span>橡皮</button>
+    </div>
+    <span class="ed-sep"></span>
+    <div class="ed-group ed-modes" id="editor-modes" role="tablist" aria-label="过滤模式"></div>
+    <span id="editor-status" class="ed-status"></span>
    </footer>
   </section>
   <header class="hud play-only"><div class="identity"><span class="brand-icon">${drop}</span><div><div class="brand">史莱姆寓言 <span>SLIME FABLE</span></div><div class="chapter">第一章 <b>·</b> 苔光森林</div></div></div>
    <div class="hud-right"><span id="vitals" class="vitals"><span id="hearts" class="hearts"></span><span id="ammo" class="ammo"></span></span><span class="dew-count"><span>◈</span> <b id="dew-count">0</b><em id="dew-total">/ 6</em></span><i></i><button type="button" id="pause" class="icon-button" aria-label="暂停游戏" title="暂停 / Esc">Ⅱ</button></div>
   </header>
-  <div id="boss-frame" class="boss-frame hidden play-only"><b id="boss-name"></b><span class="boss-bar"><i id="boss-fill"></i></span></div>
+  <div id="boss-frame" class="boss-frame hidden play-only"><b id="boss-name"></b><span class="boss-bar"><i id="boss-fill"></i></span><b id="boss-name-b" class="hidden"></b><span id="boss-bar-b" class="boss-bar hidden"><i id="boss-fill-b"></i></span></div>
   <div id="toast-col" class="toast-col play-only">
    <div id="quest-line" class="quest-line"></div>
    <div id="notice-list" class="notice-list"></div>
@@ -201,6 +214,8 @@ let overlayFrom:'title'|'pause'='title';
 let editor:EditorSession|undefined;
 let editorPreview:Level|undefined;
 let editorArtTick=-1;
+let editorChapter='';
+let editorSize='';
 let rebind:KeyAction|undefined;
 let menuFocus=0;
 const el=(id:string)=>document.getElementById(id)!;
@@ -293,6 +308,7 @@ function playCustom(doc:MapDoc,fromEditor=false){
  persist();
  adventure.fromEditor=fromEditor;
  adventure.keepFeatures=doc.features;
+ adventure.keepSource=doc.source??(isOfficialId(doc.id)?doc.id:'forest');
  adventure.selectLevel(doc.id,doc.layout);
  adventure.level.features=doc.features;
  adventure.name=progress.name;
@@ -315,6 +331,8 @@ function enterLevel(id:string){
  progress={...progress,lastLevel:id};
  persist();
  adventure.fromEditor=false;
+ adventure.keepSource=undefined;
+ adventure.keepFeatures=undefined;
  adventure.selectLevel(id);
  adventure.name=progress.name;
  adventure.start();
@@ -368,10 +386,12 @@ function renderLevels(){
   return `<button type="button" class="tier-tag ${entry.status}${open?'':' locked'}${tier.id===galleryPick?' on':''}" data-id="${tier.id}" style="left:${tier.x}%;top:${tier.y}%"><i>${String(entry.index).padStart(2,'0')}</i><b>${entry.name}</b></button>`;
  }).join('');
  const customs=listMaps();
- el('gallery-rail').innerHTML=CATALOG.slice(0,5).slice().reverse().map((entry,i)=>{
+ el('gallery-rail').innerHTML=CATALOG.map((entry,i)=>{
   const open=isPlayable(entry,progress);
   const tier=TIERS.find(t=>t.id===entry.id);
-  return `<button type="button" class="tier-card ${entry.status}${open?'':' locked'}${entry.id===galleryPick?' on':''}" data-id="${entry.id}" style="--rail-i:${i}"><span class="tier-arrow">→</span><span class="tier-meta"><small>${String(entry.index).padStart(2,'0')}</small><b>${entry.name}</b></span><span class="tier-thumb" style="background-position:${tier?.thumb??'50% 50%'}"></span></button>`;
+  // Chapters 1–5 are crops of the tower painting; 6–10 have their own thumbnail paintings.
+  const thumb=tier?`background-position:${tier.thumb}`:`background-image:url('${asset(`assets/ui/thumb-${entry.id}.jpg`)}');background-size:cover;background-position:50% 45%`;
+  return `<button type="button" class="tier-card ${entry.status}${open?'':' locked'}${entry.id===galleryPick?' on':''}" data-id="${entry.id}" style="--rail-i:${i}"><span class="tier-arrow">→</span><span class="tier-meta"><small>${String(entry.index).padStart(2,'0')}</small><b>${entry.name}</b>${entry.status==='coming'?'<em>制作中</em>':''}</span><span class="tier-thumb" style="${thumb}"></span></button>`;
  }).join('')+(customs.length?`<div class="gallery-rail-head">自定义</div>`+customs.map(m=>`<button type="button" class="tier-card ugc${m.id===galleryPick?' on':''}" data-custom="${m.id}"><span class="tier-arrow">→</span><span class="tier-meta"><small>UGC</small><b>${m.name}</b></span><span class="tier-thumb ugc"></span></button>`).join(''):'');
  el('levels').querySelectorAll<HTMLButtonElement>('[data-id]').forEach(button=>{
   const id=button.dataset.id||'forest';
@@ -425,11 +445,53 @@ function paintHub(){
  renderHub(el('editor-hub'),openEditor,doc=>playCustom(doc,false),()=>showOverlay('none'));
 }
 
+let editorDraftAt=0;
+function persistDraft(){
+ editorDraftAt=performance.now();
+ try{
+  if(editor)sessionStorage.setItem(EDITOR_DRAFT_KEY,JSON.stringify(snapshotDraft(editor)));
+  else sessionStorage.removeItem(EDITOR_DRAFT_KEY);
+ }catch{/* storage full or blocked: refresh just falls back to the hub */}
+}
+/** A page refresh inside the editor reopens the same map, camera and mode instead of dropping to the title. */
+function restoreDraft(){
+ try{
+  const raw=sessionStorage.getItem(EDITOR_DRAFT_KEY);if(!raw)return false;
+  const session=sessionFromDraft(JSON.parse(raw));if(!session)return false;
+  editor=session;
+  editorPreview=new Level(session.doc.layout);
+  editorArtTick=-1;
+  hydrateKitImages();
+  showOverlay('editor','title');
+  return true;
+ }catch{return false;}
+}
+
+const TOOL_LABEL:Record<string,string>={select:'选择',erase:'橡皮',pan:'平移'};
+let editorStatusText='';
+/** Cheap enough to run every frame; only touches the DOM when the text actually changes. */
+function syncEditorStatus(){
+ if(!editor)return;
+ const text=`${Math.round(editor.cameraX)}, ${Math.round(-editor.cameraY)}  ·  ${editor.kit?`放置 ${editor.kit.name}`:TOOL_LABEL[editor.tool]??editor.tool}  ·  吸附 ${editor.snap||'关'}`;
+ if(text===editorStatusText)return;
+ editorStatusText=text;
+ el('editor-status').textContent=text;
+}
 function refreshEditorUi(){
  if(!editor)return;
  (el('editor-name') as HTMLInputElement).value=editor.doc.name;
+ (el('editor-snap') as HTMLSelectElement).value=String(editor.snap);
  el('editor-warn').textContent=editor.warn;
- el('editor-status').textContent=`${Math.round(editor.cameraX)},${Math.round(editor.cameraY)} · ${editor.category} · 吸附 ${editor.snap||'关'}`;
+ el('editor-dirty').classList.toggle('on',editor.dirty);
+ syncEditorStatus();
+ el('editor-ui').querySelectorAll<HTMLButtonElement>('[data-tool]').forEach(btn=>btn.classList.toggle('on',editor!.tool===btn.dataset.tool));
+ el('editor-modes').innerHTML=EDITOR_MODES.map((m,i)=>`<button type="button" class="ed-chip${editor!.mode===m?' on':''}" data-mode="${m}" role="tab" aria-selected="${editor!.mode===m}" title="${MODE_LABEL[m]}模式 (${i+1})"><i class="mode-dot ${m}"></i>${MODE_LABEL[m]}</button>`).join('');
+ el('editor-modes').querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(btn=>btn.onclick=()=>{
+  if(!editor)return;
+  setMode(editor,btn.dataset.mode as EditorMode);
+  refreshEditorUi();
+ });
+ persistDraft();
  renderPalette(el('editor-palette'),editor,id=>{
   setTool(editor!,id);
   refreshEditorUi();
@@ -447,6 +509,29 @@ function refreshEditorUi(){
 
 function bindInspect(){
  const box=el('editor-inspect');
+ box.querySelector<HTMLInputElement>('[data-query]')?.addEventListener('input',e=>{
+  if(!editor)return;
+  editor.query=(e.target as HTMLInputElement).value;
+  const q=editor.query.trim();
+  box.querySelectorAll<HTMLElement>('[data-label]').forEach(row=>{row.hidden=!!q&&!row.dataset.label!.includes(q);});
+ });
+ box.querySelectorAll<HTMLButtonElement>('[data-fold]').forEach(btn=>btn.onclick=()=>{
+  if(!editor)return;
+  toggleFold(editor,btn.dataset.fold as Parameters<typeof toggleFold>[1]);
+  refreshEditorUi();
+ });
+ box.querySelectorAll<HTMLButtonElement>('[data-lock]').forEach(btn=>btn.onclick=ev=>{
+  ev.stopPropagation();
+  if(!editor)return;
+  togglePickLock(editor,btn.dataset.lock as Parameters<typeof togglePickLock>[1]);
+  refreshEditorUi();
+ });
+ box.querySelectorAll<HTMLButtonElement>('[data-row]').forEach(btn=>{
+  const [kind,index]=btn.dataset.row!.split(':');
+  const choose=()=>{if(!editor)return;editor.sel={kind,index:Number(index)};};
+  btn.onclick=()=>{choose();refreshEditorUi();};
+  btn.ondblclick=()=>{choose();if(editor)frameSel(editor);refreshEditorUi();};
+ });
  box.querySelector<HTMLInputElement>('[data-name]')?.addEventListener('change',e=>{if(editor)editor.doc.name=(e.target as HTMLInputElement).value.slice(0,16);});
  box.querySelectorAll<HTMLInputElement>('[data-world]').forEach(input=>input.onchange=()=>{
   if(!editor)return;
@@ -460,6 +545,80 @@ function bindInspect(){
   if(!editor)return;
   const key=input.dataset.feat as keyof typeof editor.doc.features;
   editor.doc.features[key]=input.checked;
+ });
+ box.querySelectorAll<HTMLInputElement>('[data-f]').forEach(input=>input.onchange=()=>{
+  if(!editor?.sel)return;
+  pushUndo(editor);
+  applySelNum(editor.doc.layout,editor.sel,input.dataset.f as 'x'|'y'|'w'|'h',Number(input.value));
+  editor.dirty=true;editor.artTick++;
+  refreshEditorUi();
+ });
+ box.querySelector<HTMLInputElement>('[data-kind]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='base')return;
+  pushUndo(editor);
+  editor.doc.layout.base[editor.sel.index].kind=(e.target as HTMLInputElement).value;
+  editor.dirty=true;editor.artTick++;
+ });
+ box.querySelector<HTMLInputElement>('[data-oneway]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='base')return;
+  pushUndo(editor);
+  editor.doc.layout.base[editor.sel.index].oneWay=(e.target as HTMLInputElement).checked;
+  editor.dirty=true;editor.artTick++;
+ });
+ box.querySelector<HTMLInputElement>('[data-s]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='dress')return;
+  const item=editor.doc.layout.dressing?.[editor.sel.index];if(!item)return;
+  pushUndo(editor);
+  item.s=Number((e.target as HTMLInputElement).value)||1;
+  editor.dirty=true;editor.artTick++;
+ });
+ box.querySelector<HTMLInputElement>('[data-flip]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='dress')return;
+  const item=editor.doc.layout.dressing?.[editor.sel.index];if(!item)return;
+  pushUndo(editor);
+  item.flip=(e.target as HTMLInputElement).checked?-1:1;
+  editor.dirty=true;editor.artTick++;
+ });
+ box.querySelector<HTMLInputElement>('[data-dew-role]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='dew')return;
+  editor.doc.layout.dew[editor.sel.index].role=(e.target as HTMLInputElement).checked?'main':'bonus';
+  editor.dirty=true;
+ });
+ box.querySelector<HTMLInputElement>('[data-patrol]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='enemy')return;
+  editor.doc.layout.enemies[editor.sel.index].patrol=Number((e.target as HTMLInputElement).value)||50;
+  editor.dirty=true;
+ });
+ box.querySelector<HTMLInputElement>('[data-sign-text]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='sign')return;
+  const sign=editor.doc.layout.signs?.[editor.sel.index];if(sign)sign.text=(e.target as HTMLInputElement).value;
+  editor.dirty=true;
+ });
+ box.querySelector<HTMLInputElement>('[data-sign-arrow]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='sign')return;
+  const sign=editor.doc.layout.signs?.[editor.sel.index];if(sign)sign.arrow=(e.target as HTMLInputElement).value;
+  editor.dirty=true;
+ });
+ box.querySelector<HTMLInputElement>('[data-portal-pair]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='portal')return;
+  const gate=editor.doc.layout.portals?.[editor.sel.index];if(!gate)return;
+  gate.pair=(e.target as HTMLInputElement).value.trim()||gate.pair;
+  editor.dirty=true;
+ });
+ box.querySelector<HTMLInputElement>('[data-hint-text]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='hint')return;
+  const hint=editor.doc.layout.hints?.[editor.sel.index];if(hint)hint.text=(e.target as HTMLInputElement).value;
+  editor.dirty=true;
+ });
+ box.querySelector<HTMLInputElement>('[data-area-name]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='area')return;
+  editor.doc.layout.areas[editor.sel.index].name=(e.target as HTMLInputElement).value;
+  editor.dirty=true;refreshEditorUi();
+ });
+ box.querySelector<HTMLInputElement>('[data-area-sub]')?.addEventListener('change',e=>{
+  if(!editor?.sel||editor.sel.kind!=='area')return;
+  editor.doc.layout.areas[editor.sel.index].sub=(e.target as HTMLInputElement).value;
+  editor.dirty=true;
  });
 }
 
@@ -475,7 +634,8 @@ function saveEditor(){
  if(!editor)return;
  const reach=reachable(editor.doc.layout);
  editor.warn=reach.ok?'':`提醒：${reach.dew?'':'晨露难到达'}${reach.exit?'':' · 通关线难到达'}`;
- saveMap(editor.doc);
+ if(isOfficialId(editor.doc.id))saveOfficialOverride(editor.doc);
+ else saveMap(editor.doc);
  editor.dirty=false;
  refreshEditorUi();
 }
@@ -488,6 +648,7 @@ function playEditor(){
 function leaveEditor(){
  if(editor?.dirty&&!confirm('有未保存改动，确定返回？'))return;
  editor=undefined;
+ persistDraft();
  showOverlay('editor-hub','title');
 }
 
@@ -563,7 +724,7 @@ el('editor-export').onclick=()=>{
  const blob=new Blob([exportMap(editor.doc)],{type:'application/json'});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${editor.doc.name}.json`;a.click();
 };
-el('editor-snap').onchange=()=>{if(editor)editor.snap=Number((el('editor-snap') as HTMLSelectElement).value);};
+el('editor-snap').onchange=()=>{if(!editor)return;editor.snap=Number((el('editor-snap') as HTMLSelectElement).value);syncEditorStatus();persistDraft();};
 el('editor-name').onchange=()=>{if(editor)editor.doc.name=(el('editor-name') as HTMLInputElement).value.slice(0,16);};
 el('editor-ui').querySelectorAll<HTMLButtonElement>('[data-tool]').forEach(btn=>btn.onclick=()=>{if(!editor)return;setTool(editor,btn.dataset.tool!);refreshEditorUi();});
 el('pause-editor').onclick=()=>{
@@ -603,7 +764,7 @@ el('game').addEventListener('pointerdown',event=>{
    if(editor.kit.place==='point'){placeAt(editor,p.x,p.y);refreshEditorUi();return;}
    editor.drag={kind:'place',x:p.x,y:p.y,ox:p.x,oy:p.y};return;
   }
-  pick(editor,p.x,p.y);
+  pick(editor,p.x,p.y,event.altKey);
   if(editor.sel){pushUndo(editor);editor.drag={kind:'move',x:p.x,y:p.y,ox:p.x,oy:p.y};}
   refreshEditorUi();
   return;
@@ -618,8 +779,11 @@ el('game').addEventListener('pointerdown',event=>{
  input.setMouse('melee',true);
 });
 el('game').addEventListener('pointermove',event=>{
- if(overlay==='editor'&&editor?.drag){
-  const p=editorWorld(event),d=editor.drag;
+ if(overlay==='editor'&&editor){
+  const p=editorWorld(event);
+  editor.hoverX=p.x;editor.hoverY=p.y;
+  if(!editor.drag)return;
+  const d=editor.drag;
   if(d.kind==='pan'){
    editor.cameraX=Math.max(0,editor.cameraX-(event.movementX||0));
    editor.cameraY=editor.cameraY+(event.movementY||0);
@@ -640,6 +804,7 @@ const releaseMouse=(event?:PointerEvent)=>{
    placeAt(editor,x,y,Math.max(16,w),Math.max(16,h));
    refreshEditorUi();
   }
+  if(d.kind==='move'&&editor.sel){snapSel(editor.doc.layout,editor.sel,editor.snap);editor.artTick++;refreshEditorUi();}
   editor.drag=undefined;
  }
  input.setMouse('melee',false);input.setMouse('dodge',false);
@@ -658,6 +823,10 @@ window.addEventListener('keydown',e=>{
   if(e.code==='KeyV'){setTool(editor,'select');refreshEditorUi();return;}
   if(e.code==='KeyH'){setTool(editor,'pan');refreshEditorUi();return;}
   if(e.code==='Space'){editor.tool='pan';return;}
+  if(!e.ctrlKey&&!e.altKey&&/^Digit[1-6]$/.test(e.code)){
+   const mode=EDITOR_MODES[Number(e.code.slice(5))-1];
+   if(mode){setMode(editor,mode);refreshEditorUi();return;}
+  }
  }
  if(e.target instanceof HTMLElement&&e.target.closest('#slime-name'))return;
  if(rebind){
@@ -697,6 +866,7 @@ renderSettings();
 syncScheme();
 bindTouch();
 hydrateKitImages();
+restoreDraft();
 
 let lastHud=0;
 const timings={physics:0,art:0,surface:0,upload:0};
@@ -728,6 +898,13 @@ function hud(time:number,fps:number){
  if(bar.visible){
   el('boss-name').textContent=bar.name;
   el('boss-fill').style.width=`${Math.max(0,Math.min(100,bar.maxHp?bar.hp/bar.maxHp*100:0))}%`;
+  const other=bar.other;
+  el('boss-name-b').classList.toggle('hidden',!other);
+  el('boss-bar-b').classList.toggle('hidden',!other);
+  if(other){
+   el('boss-name-b').textContent=other.name;
+   el('boss-fill-b').style.width=`${Math.max(0,Math.min(100,other.maxHp?other.hp/other.maxHp*100:0))}%`;
+  }
  }
  const quests=a.level.features.quests?a.level.quests.map(q=>{
   const p=a.questProgress(q.id);
@@ -792,16 +969,35 @@ class ForestScene extends Phaser.Scene {
    const maxX=Math.max(0,editor.doc.layout.width-W);
    editor.cameraX=Math.max(0,Math.min(maxX,editor.cameraX+actions.move*16));
    editor.cameraY=Math.max(-editor.doc.layout.height+H,Math.min(360,editor.cameraY-actions.climb*16));
-   if(editorArtTick!==editor.artTick||forest.level!==editorPreview){
-    editorPreview=new Level(editor.doc.layout);
-    forest=new ForestArt(editorPreview);
+   const ch=editor.doc.source??(isOfficialId(editor.doc.id)?editor.doc.id:'forest');
+   const size=`${ch}:${editor.doc.layout.width}x${editor.doc.layout.height}`;
+   if(editorChapter!==ch||editorSize!==size||!editorPreview){
+    editorChapter=ch;editorSize=size;editorArtTick=editor.artTick;
+    if(ch==='wind'){editorPreview=new WindLevel(editor.doc.layout);windArt=new WindArt(editorPreview);}
+    else if(ch==='mirror'){editorPreview=new MirrorLevel(editor.doc.layout);mirrorArt=new MirrorArt(editorPreview);}
+    else if(ch==='tide'){editorPreview=new TideLevel(editor.doc.layout);gallery=new TideArt(editorPreview as TideLevel);}
+    else if(ch==='honey'){editorPreview=new HoneyLevel(editor.doc.layout);hive=new HoneyArt(editorPreview as HoneyLevel);}
+    else {editorPreview=new Level(editor.doc.layout);forest=new ForestArt(editorPreview);}
+   }else if(editorArtTick!==editor.artTick){
     editorArtTick=editor.artTick;
+    editorPreview.applyLayout(editor.doc.layout);
+    if(ch==='wind')windArt?.syncLayout();
+    else if(ch==='mirror')mirrorArt?.syncLayout();
+    else if(ch==='honey')hive?.syncLayout();
+    else if(ch!=='tide')forest.syncLayout();
    }
    this.layers.forEach(layer=>layer.setVisible(false));
    c.clearRect(0,0,W,H);
-   forest.drawBackground(c,editor.cameraX,editor.cameraY,time/1000);
-   forest.drawDetails(c,editor.cameraX,time/1000,adventure.sim);
-   drawGizmos(c,editor.doc.layout,editor.cameraX,editor.cameraY,editor.sel);
+   if(ch==='wind'&&windArt){windArt.drawLayers(c,editor.cameraX,editor.cameraY);c.save();c.translate(0,editor.cameraY);windArt.drawDetails(c,editor.cameraX,time/1000,adventure.sim);c.restore();}
+   else if(ch==='mirror'&&mirrorArt){mirrorArt.drawLayers(c,editor.cameraX,editor.cameraY);c.save();c.translate(0,editor.cameraY);mirrorArt.drawDetails(c,editor.cameraX,time/1000,adventure.sim);c.restore();}
+   else if(ch==='tide'&&gallery){gallery.drawLayers(c,editor.cameraX,editor.cameraY);c.save();c.translate(0,editor.cameraY);gallery.drawDetails(c,editor.cameraX,time/1000,adventure.sim);c.restore();}
+   else if(ch==='honey'&&hive){hive.drawLayers(c,editor.cameraX,editor.cameraY);c.save();c.translate(0,editor.cameraY);hive.drawDetails(c,editor.cameraX,time/1000,adventure.sim);c.restore();}
+   else {forest.drawBackground(c,editor.cameraX,editor.cameraY,time/1000);c.save();c.translate(0,editor.cameraY);forest.drawDetails(c,editor.cameraX,time/1000,adventure.sim);c.restore();}
+   const snap=editor.snap;
+   const ghost=editor.kit?{kit:editor.kit,x:snap?Math.round(editor.hoverX/snap)*snap:editor.hoverX,y:snap?Math.round(editor.hoverY/snap)*snap:editor.hoverY}:undefined;
+   drawGizmos(c,editor.doc.layout,editor.cameraX,editor.cameraY,editor.sel,editor.pickLock,ghost);
+   syncEditorStatus();
+   if(performance.now()-editorDraftAt>800)persistDraft();
    this.texture.refresh();
    return;
   }
@@ -810,9 +1006,8 @@ class ForestScene extends Phaser.Scene {
   for(const cue of adventure.cues)bus.play(cue as 'slash');
   adventure.cues=[];
   if(progress.soundOn){
-   const picnic=adventure.actors.find(foe=>foe.kind==='picnic'&&(!foe.dead||foe.state==='dying'));
    const center=adventure.sim.center();
-   const boss=!!picnic&&Math.abs(picnic.x-center.x)<540;
+   const boss=adventure.actors.some(foe=>isBoss(foe.kind)&&(!foe.dead||foe.state==='dying')&&Math.abs(foe.x-center.x)<540);
    bus.setBgm(adventure.started?(boss?'boss':'explore'):'explore',!adventure.started);
   }
   const level=adventure.level;
@@ -862,7 +1057,18 @@ class ForestScene extends Phaser.Scene {
    for(const pulse of adventure.pulses)windArt.gust(pulse.x,pulse.y,pulse.facing,pulse.power);
    adventure.pulses=[];
    windArt.drawDetails(c,adventure.camera,adventure.time,adventure.sim);
-   drawSlime(c,adventure.sim,adventure.camera,adventure.time,adventure.debug);
+   foes.draw(c,adventure.actors,adventure.camera,adventure.time,adventure.sim.center().x);
+   const slash=adventure.combat.slashes[0];
+   const lookX=Math.max(-2,Math.min(2,adventure.sim.center().vx*.012));
+   drawSlime(c,adventure.sim,adventure.camera,adventure.time,adventure.debug,undefined,{
+    hurt:adventure.invuln,
+    attack:slash?{facing:slash.facing,t:slash.t,life:slash.life,step:slash.step}:undefined,
+    face:adventure.mood.pose(lookX),
+    bulk:adventure.swallowBulk(),
+    swallow:adventure.swallow?{kind:adventure.swallow.prey.kind,t:adventure.swallow.t,phase:adventure.swallow.phase}:undefined,
+    ghosts:adventure.ghosts,
+   });
+   drawCombat(c,adventure.combat,adventure.camera);
    drawWater(c,adventure.water,adventure.camera,adventure.time,true);
    c.restore();
    drawDebugOverlay(c,level,adventure.camera,adventure.cameraY,windArt.terrain);
@@ -877,7 +1083,18 @@ class ForestScene extends Phaser.Scene {
    for(const pulse of adventure.pulses)mirrorArt.gust(pulse.x,pulse.y,pulse.facing,pulse.power);
    adventure.pulses=[];
    mirrorArt.drawDetails(c,adventure.camera,adventure.time,adventure.sim);
-   drawSlime(c,adventure.sim,adventure.camera,adventure.time,adventure.debug);
+   foes.draw(c,adventure.actors,adventure.camera,adventure.time,adventure.sim.center().x);
+   const slash=adventure.combat.slashes[0];
+   const lookX=Math.max(-2,Math.min(2,adventure.sim.center().vx*.012));
+   drawSlime(c,adventure.sim,adventure.camera,adventure.time,adventure.debug,undefined,{
+    hurt:adventure.invuln,
+    attack:slash?{facing:slash.facing,t:slash.t,life:slash.life,step:slash.step}:undefined,
+    face:adventure.mood.pose(lookX),
+    bulk:adventure.swallowBulk(),
+    swallow:adventure.swallow?{kind:adventure.swallow.prey.kind,t:adventure.swallow.t,phase:adventure.swallow.phase}:undefined,
+    ghosts:adventure.ghosts,
+   });
+   drawCombat(c,adventure.combat,adventure.camera);
    mirrorArt.drawPool(c,adventure.water,adventure.camera,adventure.time,true);
    c.restore();
    drawDebugOverlay(c,level,adventure.camera,adventure.cameraY,mirrorArt.terrain);

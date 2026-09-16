@@ -1,4 +1,4 @@
-import {sanitizeDoc,MAP_STORE_KEY,cloneDoc,type MapDoc} from './schema';
+import {sanitizeDoc,sanitizeOfficialDoc,MAP_STORE_KEY,OFFICIAL_STORE_KEY,cloneDoc,type MapDoc} from './schema';
 
 type Box={getItem(key:string):string|null;setItem(key:string,value:string):void};
 
@@ -35,6 +35,34 @@ export function removeMap(id:string,storage?:Box){
 }
 
 export function exportMap(doc:MapDoc){return JSON.stringify(cloneDoc(doc),null,2);}
+
+function readOfficial(storage?:Box):MapDoc[]{
+ const store=box(storage);if(!store)return [];
+ try{
+  const parsed=JSON.parse(store.getItem(OFFICIAL_STORE_KEY)||'[]');
+  if(!Array.isArray(parsed))return [];
+  return parsed.map(item=>sanitizeOfficialDoc(item).doc).filter((d):d is MapDoc=>!!d);
+ }catch{return [];}
+}
+
+function writeOfficial(docs:MapDoc[],storage?:Box){
+ const store=box(storage);if(!store)return;
+ try{store.setItem(OFFICIAL_STORE_KEY,JSON.stringify(docs.map(cloneDoc)));}catch{/* ignore */}
+}
+
+export function loadOfficialOverride(id:string,storage?:Box){return readOfficial(storage).find(doc=>doc.id===id);}
+
+export function saveOfficialOverride(doc:MapDoc,storage?:Box){
+ const next=cloneDoc({...doc,updatedAt:Date.now()});
+ const docs=readOfficial(storage).filter(item=>item.id!==doc.id);
+ docs.push(next);
+ writeOfficial(docs,storage);
+ return next;
+}
+
+export function clearOfficialOverride(id:string,storage?:Box){
+ writeOfficial(readOfficial(storage).filter(item=>item.id!==id),storage);
+}
 
 export function importMap(text:string,storage?:Box){
  try{

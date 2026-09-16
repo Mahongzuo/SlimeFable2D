@@ -1,10 +1,16 @@
 import {describe,expect,it} from 'vitest';
+import {cloneLayout} from '../src/content/types';
 import {FOREST_LAYOUT} from '../src/content/chapter1/forest';
 import {MIRROR_LAYOUT} from '../src/content/chapter5/mirror';
-import {blankDoc,fromOfficial} from '../src/editor/defaults';
-import {applyKit} from '../src/editor/tools';
-import {importMap,listMaps,saveMap} from '../src/editor/store';
-import {isCustomId,sanitizeDoc} from '../src/editor/schema';
+import {blankDoc,fromOfficial,officialDoc} from '../src/editor/defaults';
+import {DEFAULT_PICK_LOCK,folderOfKit,listOutliner} from '../src/editor/outliner';
+import {makeSession,sessionFromDraft,setMode,snapshotDraft} from '../src/editor/session';
+import {applyKit,applySelNum,hitTest} from '../src/editor/tools';
+import {clearOfficialOverride,importMap,listMaps,loadOfficialOverride,saveMap,saveOfficialOverride} from '../src/editor/store';
+import {isCustomId,isOfficialId,sanitizeDoc,sanitizeOfficialDoc} from '../src/editor/schema';
+import {FEATURES_HEATH} from '../src/catalog';
+import {Adventure} from '../src/game';
+import {WindLevel} from '../src/wind-level';
 import {defaultProgress,loadProgress,saveProgress} from '../src/progress';
 import {kitById} from '../src/kit/register';
 
@@ -83,5 +89,111 @@ describe('editor maps',()=>{
   applyKit(doc.layout,kitById('dew-tide')!,{x:500,y:560});
   expect(doc.layout.dressing?.some(d=>d.kit==='forest-mushroom')).toBe(true);
   expect(doc.layout.dew[0].skin).toBe('tide');
+ });
+
+ it('copies wind with heath features, not forest',()=>{
+  const doc=fromOfficial('wind')!;
+  expect(isCustomId(doc.id)).toBe(true);
+  expect(doc.source).toBe('wind');
+  expect(doc.features).toEqual(FEATURES_HEATH);
+ });
+
+ it('opens official wind for edit and stores an override',()=>{
+  const store=memory();
+  const doc=officialDoc('wind')!;
+  expect(isOfficialId(doc.id)).toBe(true);
+  expect(doc.id).toBe('wind');
+  doc.layout.base[0].w=640;
+  saveOfficialOverride(doc,store);
+  expect(loadOfficialOverride('wind',store)?.layout.base[0].w).toBe(640);
+  const a=new Adventure();
+  const prev=globalThis.localStorage;
+  const fake=store as unknown as Storage;
+  Object.defineProperty(globalThis,'localStorage',{value:fake,configurable:true});
+  a.selectLevel('wind');
+  expect(a.level).toBeInstanceOf(WindLevel);
+  expect(a.level.base[0].w).toBe(640);
+  Object.defineProperty(globalThis,'localStorage',{value:prev,configurable:true});
+  clearOfficialOverride('wind',store);
+  expect(loadOfficialOverride('wind',store)).toBeUndefined();
+ });
+
+ it('writes inspect width and one-way onto a solid',()=>{
+  const doc=fromOfficial('wind')!;
+  const i=doc.layout.base.findIndex(r=>r.kind==='stone'&&!r.oneWay);
+  expect(i).toBeGreaterThanOrEqual(0);
+  applySelNum(doc.layout,{kind:'base',index:i},'w',222);
+  doc.layout.base[i].oneWay=true;
+  expect(doc.layout.base[i].w).toBe(222);
+  expect(doc.layout.base[i].oneWay).toBe(true);
+ });
+
+ it('keeps official ids out of custom sanitizer',()=>{
+  const doc=officialDoc('mirror')!;
+  expect(sanitizeDoc(doc).doc).toBeUndefined();
+  expect(sanitizeOfficialDoc(doc).doc?.id).toBe('mirror');
+ });
+
+ it('lists mirror actors in five outliner folders',()=>{
+  const groups=listOutliner(MIRROR_LAYOUT);
+  expect(Object.keys(groups)).toEqual(['collision','scenery','placed','enemy','zone']);
+  expect(groups.collision.some(r=>r.kind==='base'&&r.label.startsWith('石台'))).toBe(true);
+  expect(groups.collision.some(r=>r.kind==='base'&&r.label.startsWith('单向台'))).toBe(true);
+  expect(groups.scenery.some(r=>r.label.includes('星晶'))).toBe(true);
+  expect(groups.placed.some(r=>r.kind==='dew')).toBe(true);
+  expect(groups.placed.some(r=>r.kind==='portal'&&r.label.includes('星门'))).toBe(true);
+  expect(groups.zone.some(r=>r.kind==='hint')).toBe(true);
+  expect(groups.zone.some(r=>r.label.includes('星空花园'))).toBe(true);
+  expect(DEFAULT_PICK_LOCK).toEqual(['zone']);
+ });
+
+ it('picks the deck instead of the hint band when zone is locked',()=>{
+  const at={x:500,y:1690};
+  expect(hitTest(MIRROR_LAYOUT,at.x,at.y,['zone'])).toEqual({kind:'base',index:0});
+  expect(hitTest(MIRROR_LAYOUT,at.x,at.y,[])).toEqual({kind:'hint',index:0});
+ });
+ it('a mode locks every other folder and drops a selection that no longer fits',()=>{
+  const session=makeSession(officialDoc('mirror')!);
+  session.sel={kind:'base',index:0};
+  setMode(session,'zone');
+  expect(session.pickLock.sort()).toEqual(['collision','enemy','placed','scenery']);
+  expect(session.sel).toBeUndefined();
+  expect(hitTest(session.doc.layout,500,1690,session.pickLock)).toEqual({kind:'hint',index:0});
+  setMode(session,'all');
+  expect(session.pickLock).toEqual(DEFAULT_PICK_LOCK);
+ });
+ it('palette entries land in the same folder the outliner files them under',()=>{
+  expect(folderOfKit(kitById('forest-earth')!)).toBe('collision');
+  expect(folderOfKit(kitById('sign-hint')!)).toBe('zone');
+  expect(folderOfKit(kitById('sign-area')!)).toBe('zone');
+  expect(folderOfKit(kitById('interact-stake')!)).toBe('placed');
+  expect(folderOfKit(kitById('interact-checkpoint')!)).toBe('placed');
+  expect(kitById('sign-post')&&folderOfKit(kitById('sign-post')!)).toBe('scenery');
+  expect(folderOfKit(kitById('mirror-portal')!)).toBe('placed');
+ });
+ it('pairs the second portal with the first and lists both in 摆放',()=>{
+  const layout=cloneLayout(blankDoc('门',2560,1440,false).layout);
+  const kit=kitById('mirror-portal')!;
+  applyKit(layout,kit,{x:100,y:600});
+  applyKit(layout,kit,{x:400,y:600});
+  expect(layout.portals).toHaveLength(2);
+  expect(layout.portals![0].pair).toBe(layout.portals![1].pair);
+  applyKit(layout,kit,{x:700,y:600});
+  expect(layout.portals![2].pair).not.toBe(layout.portals![0].pair);
+  expect(listOutliner(layout).placed.filter(r=>r.kind==='portal')).toHaveLength(3);
+  expect(hitTest(layout,100,560,[])).toEqual({kind:'portal',index:0});
+ });
+ it('round-trips an editor draft with camera, mode and dirty flag',()=>{
+  const session=makeSession(officialDoc('wind')!);
+  session.cameraX=1234;session.cameraY=-321;session.dirty=true;session.snap=8;
+  setMode(session,'enemy');
+  const back=sessionFromDraft(JSON.parse(JSON.stringify(snapshotDraft(session))));
+  expect(back?.doc.id).toBe('wind');
+  expect(back?.cameraX).toBe(1234);
+  expect(back?.cameraY).toBe(-321);
+  expect(back?.mode).toBe('enemy');
+  expect(back?.dirty).toBe(true);
+  expect(back?.snap).toBe(8);
+  expect(sessionFromDraft({doc:{id:'nope'}})).toBeUndefined();
  });
 });

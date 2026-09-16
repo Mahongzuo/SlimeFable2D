@@ -17,7 +17,8 @@ const CASES:number[][]=[[],[3,0],[0,1],[3,1],[1,2],[3,0,1,2],[0,2],[3,2],[2,3],[
 function surface(particles:Particle[],camera:number){
  const minX=Math.min(...particles.map(p=>p.x))-17,minY=Math.min(...particles.map(p=>p.y))-17;
  const maxX=Math.max(...particles.map(p=>p.x))+17,maxY=Math.max(...particles.map(p=>p.y))+17;
- let cell=1.25;if((maxX-minX)*(maxY-minY)>90000)cell=2.4;
+ const area=(maxX-minX)*(maxY-minY);
+ let cell=1.25;if(area>90000)cell=2.4;if(area>220000)cell=4;
  const nx=Math.ceil((maxX-minX)/cell)+1,ny=Math.ceil((maxY-minY)/cell)+1;
  const field=new Float32Array(nx*ny),radius=16,rr=radius*radius;
  for(const p of particles){
@@ -132,8 +133,12 @@ export function drawSlime(c:CanvasRenderingContext2D,sim:SlimeSimulation,camera:
   c.restore();c.restore();
  }
  for(const group of groups){
+  if(sim.flat(group))continue;
   const ps=sim.particles.filter(p=>p.group===group),center=sim.center(group),x=center.x-camera,y=center.y;
-  const height=Math.max(...ps.map(p=>p.y))-Math.min(...ps.map(p=>p.y));if(height<22)continue;
+  const cx=ps.reduce((n,p)=>n+p.x,0)/ps.length,cy=ps.reduce((n,p)=>n+p.y,0)/ps.length;
+  const compact=ps.filter(p=>Math.hypot(p.x-cx,p.y-cy)<82);
+  const facePs=compact.length>ps.length*.5?compact:ps;
+  const height=Math.max(...facePs.map(p=>p.y))-Math.min(...facePs.map(p=>p.y));if(height<22)continue;
   const active=group===sim.activeGroup,small=groups.length>1,scale=small?.78:1,gaze=Math.max(-2,Math.min(2,center.vx*.012));
   const blink=Math.sin(time*.8+group*3)>.997;
   c.save();c.translate(x,y+3);c.scale(scale,scale);

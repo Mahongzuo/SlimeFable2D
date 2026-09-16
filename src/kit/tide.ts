@@ -11,4 +11,7 @@ export const TIDE_KIT:KitEntry[]=[
  {id:'dew-tide',chapter:'tide',category:'collect',name:'盐晶',place:'point',play:'pickup',pickup:'dew',dewSkin:'tide',defaults:{},draw:'canvas',mark:'潮'},
  {id:'souvenir-tidepoem',chapter:'tide',category:'collect',name:'潮诗',place:'point',play:'pickup',pickup:'souvenir',souvenirId:'tidepoem',defaults:{},draw:'canvas',mark:'潮'},
  {id:'critter-jelly',chapter:'tide',category:'critter',name:'水母',place:'point',play:'dress',defaults:{s:1},draw:'canvas',mark:'潮'},
+ {id:'enemy-cent',chapter:'tide',category:'enemy',name:'金鳞蜈',place:'point',play:'actor',actorKind:'cent',defaults:{},draw:'canvas',mark:'潮'},
+ {id:'enemy-wolfb',chapter:'tide',category:'enemy',name:'霜爪士',place:'point',play:'actor',actorKind:'wolfb',defaults:{},draw:'canvas',mark:'潮'},
+ {id:'enemy-pale',chapter:'tide',category:'enemy',name:'苍白潮客',place:'point',play:'actor',actorKind:'pale',defaults:{},draw:'canvas',mark:'潮'},
 ];

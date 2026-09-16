@@ -1,6 +1,6 @@
-import {FEATURES_FOREST} from '../catalog';
+import {FEATURES_FOREST,levelById} from '../catalog';
 import {FOREST_LAYOUT} from '../content/chapter1/forest';
-import {TIDE_LAYOUT} from '../content/chapter3/tide';
+import {TIDE_LAYOUT,TIDE_WATERS} from '../content/chapter3/tide';
 import {WIND_LAYOUT} from '../content/chapter4/wind';
 import {MIRROR_LAYOUT} from '../content/chapter5/mirror';
 import {cloneLayout,type HintBand,type LevelLayout,type SignSpot,type CheckTrigger} from '../content/types';
@@ -43,6 +43,27 @@ function bounds(width:number,height:number){
  ];
 }
 
+function featuresOf(id:string){
+ return {...(levelById(id)?.features??FEATURES_FOREST)};
+}
+
+export function officialLayout(id:string):LevelLayout|undefined{
+ if(id==='forest')return {...FOREST_LAYOUT,signs:FOREST_SIGNS,hints:FOREST_HINTS,checks:FOREST_CHECKS,win:{kind:'line',x:FOREST_LAYOUT.completeX}};
+ if(id==='wind')return cloneLayout(WIND_LAYOUT);
+ if(id==='mirror')return cloneLayout(MIRROR_LAYOUT);
+ if(id==='tide')return {...cloneLayout(TIDE_LAYOUT),waters:TIDE_WATERS.map(w=>({...w}))};
+ if(id==='honey'){
+  const hive=new HoneyLevel();
+  return {
+   id:'honey',width:hive.width,height:1100,fallY:hive.fallY,completeX:4920,
+   water:{...hive.water},plates:hive.plates.map(p=>({...p})),gate:{...hive.gate},base:hive.base.map(r=>({...r})),
+   dew:hive.dew.map(d=>({...d,skin:'honey'})),enemies:hive.enemies.map(e=>({...e})),souvenirs:[],stakes:[],
+   checkpoint:{...hive.checkpoint},areas:[{at:0,name:'琥珀蜜穴',sub:'AMBER HIVE'}],quests:[],
+   hints:[{x0:0,x1:900,text:'蜜蜡地形可继续摆官方素材'}],
+  };
+ }
+}
+
 export function blankLayout(id:string,width=5200,height=2200,grass=true):LevelLayout{
  const groundW=Math.min(900,width-200);
  return {
@@ -76,33 +97,20 @@ export function blankDoc(name='我的林间',width=5200,height=2200,grass=true):
  };
 }
 
-function fromLayout(layout:LevelLayout,name:string,source:string):MapDoc{
- const id=newCustomId();
+function wrap(layout:LevelLayout,name:string,source:string,id:string,copied:boolean):MapDoc{
  const copy=cloneLayout(layout);
  copy.id=id;
- return {version:1,id,name:`${name}·抄`,source,updatedAt:Date.now(),features:{...FEATURES_FOREST},layout:copy};
+ return {version:1,id,name:copied?`${name}·抄`:name,source,updatedAt:Date.now(),features:featuresOf(source),layout:copy};
 }
 
 export function fromOfficial(id:string):MapDoc|undefined{
- if(id==='forest'){
-  const doc=fromLayout({...FOREST_LAYOUT,signs:FOREST_SIGNS,hints:FOREST_HINTS,checks:FOREST_CHECKS,win:{kind:'line',x:FOREST_LAYOUT.completeX}},'苔光森林','forest');
-  return doc;
- }
- if(id==='wind')return fromLayout(cloneLayout(WIND_LAYOUT),'风铃荒原','wind');
- if(id==='mirror')return fromLayout(cloneLayout(MIRROR_LAYOUT),'镜湖夜航','mirror');
- if(id==='honey'){
-  const hive=new HoneyLevel();
-  return fromLayout({
-   id:'honey',width:hive.width,height:1100,fallY:hive.fallY,completeX:4920,
-   water:{...hive.water},plates:hive.plates.map(p=>({...p})),gate:{...hive.gate},base:hive.base.map(r=>({...r})),
-   dew:hive.dew.map(d=>({...d,skin:'honey'})),enemies:[],souvenirs:[],stakes:[],
-   checkpoint:{...hive.checkpoint},areas:[{at:0,name:'琥珀蜜穴',sub:'AMBER HIVE'}],quests:[],
-   hints:[{x0:0,x1:900,text:'以森林画风打开 · 蜜蜡地形可继续摆官方素材'}],
-  },'琥珀蜜穴','honey');
- }
- if(id==='tide'){
-  return fromLayout({...cloneLayout(TIDE_LAYOUT),waters:[{x:450,y:1304,w:200,h:66},{x:1600,y:772,w:160,h:58}],hints:[{x0:0,x1:900,text:'以森林画风打开 · 潮汐素材可从左侧板选用'}]},'潮汐石廊','tide');
- }
+ const layout=officialLayout(id);if(!layout)return;
+ return wrap(layout,levelById(id)?.name??id,id,newCustomId(),true);
+}
+
+export function officialDoc(id:string):MapDoc|undefined{
+ const layout=officialLayout(id);if(!layout)return;
+ return wrap(layout,levelById(id)?.name??id,id,id,false);
 }
 
 export {cloneDoc};

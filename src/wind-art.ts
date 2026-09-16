@@ -2,9 +2,9 @@ import {W,H,canvas,rng} from './art';
 import {gapBelowDeck,keyedSprite,stampDeck} from './art-key';
 import {asset} from './asset';
 import {WIND_FALLS,WIND_HEIGHT,WIND_WIDTH} from './content/chapter4/wind';
-import {drawDressing} from './kit/view';
+import {drawDressing,drawPortals} from './kit/view';
 import {WIND_DECK,drawDeckGrass,gustDeckGrass,paintBasin,paintDeck,scatterDeckGrass,stirDeckGrass,type DeckGrass} from './kit/ground';
-import {keyWhite,makeSlab,paintColumn,paintProp,paintSlab,type Slab} from './kit/slab';
+import {keyMatte,keyWhite,makeSlab,paintColumn,paintProp,paintSlab,type Slab} from './kit/slab';
 import type {Level} from './level';
 import type {Rect,SlimeSimulation} from './physics';
 type C=CanvasRenderingContext2D;
@@ -21,6 +21,13 @@ const COLUMNS:{x:number;y0:number;y1:number}[]=[
 const LANDMARKS:{id:'temple'|'tower';x:number;y:number;h:number}[]=[
  {id:'temple',x:1240,y:260,h:230},
  {id:'tower',x:1380,y:760,h:270},
+];
+/** Midground silhouettes, baked onto the middle canvas. Never solid. */
+const SILS:{id:'isle'|'tower'|'arch';x:number;y:number;h:number}[]=[
+ {id:'isle',x:360,y:980,h:240},
+ {id:'tower',x:1980,y:540,h:300},
+ {id:'arch',x:2860,y:920,h:220},
+ {id:'isle',x:780,y:380,h:190},
 ];
 
 function load(src:string){
@@ -46,6 +53,7 @@ export class WindArt{
  private bridge?:HTMLCanvasElement;
  private column?:HTMLCanvasElement;
  private props:Partial<Record<'temple'|'tower',HTMLCanvasElement>>={};
+ private sils:Partial<Record<'isle'|'tower'|'arch',HTMLCanvasElement>>={};
  constructor(public level:Level){
   this.paintFallback();
   void this.hydrate();
@@ -68,7 +76,11 @@ export class WindArt{
    load(asset('assets/wind/column.png')).then(i=>{this.column=keyWhite(i);}).catch(()=>{}),
    load(asset('assets/wind/temple.png')).then(i=>{this.props.temple=keyWhite(i);}).catch(()=>{}),
    load(asset('assets/wind/tower.png')).then(i=>{this.props.tower=keyWhite(i);}).catch(()=>{}),
+   load(asset('assets/wind/sil-isle.png')).then(i=>{this.sils.isle=keyMatte(i);}).catch(()=>{}),
+   load(asset('assets/wind/sil-tower.png')).then(i=>{this.sils.tower=keyMatte(i);}).catch(()=>{}),
+   load(asset('assets/wind/sil-arch.png')).then(i=>{this.sils.arch=keyMatte(i);}).catch(()=>{}),
   ]);
+  this.paintSils();
   this.paintTerrain();
   this.ready=true;
  }
@@ -86,7 +98,12 @@ export class WindArt{
    f.moveTo(x-80,y+40);f.lineTo(x,y);f.lineTo(x+110,y+36);f.lineTo(x+40,y+58);f.closePath();f.fill();
   }
   this.middle.getContext('2d')!.clearRect(0,0,WIND_WIDTH,WIND_HEIGHT);
+  this.paintSils();
   this.paintTerrain();
+ }
+ private paintSils(){
+  const c=this.middle.getContext('2d')!;
+  for(const s of SILS){const img=this.sils[s.id];if(img)paintProp(c,img,s.x,s.y,s.h,.9);}
  }
  /** Bridges are the thin `h<=22` stone spans; everything else is a slab. */
  private isBridge(s:Rect){return s.kind==='stone'&&s.h<=22&&s.w>150;}
@@ -100,8 +117,9 @@ export class WindArt{
   }
   const slab=s.oneWay?this.thin:this.wide;
   if(!slab){paintDeck(c,s,r,WIND_DECK);return;}
-  paintSlab(c,slab,s.x,s.y,s.w,s.oneWay?64:Math.min(250,Math.max(120,gap-10)),gap);
+  paintSlab(c,slab,s.x,s.y,s.w,s.oneWay?110:Math.min(260,Math.max(160,gap-10)),gap);
  }
+ syncLayout(){this.paintTerrain();}
  private paintTerrain(){
   const c=this.terrain.getContext('2d')!,r=rng(441);
   c.clearRect(0,0,WIND_WIDTH,WIND_HEIGHT);
@@ -115,7 +133,7 @@ export class WindArt{
  drawLayers(c:C,camera:number,cameraY:number,shx=0,shy=0){
   c.drawImage(this.sky,0,0);
   c.drawImage(this.far,-camera*.15+shx*.25,cameraY*.12+shy*.25);
-  c.save();c.globalAlpha=.62;
+  c.save();c.globalAlpha=.82;
   c.drawImage(this.middle,-camera*.38+shx*.5,cameraY*.28+shy*.5);
   c.restore();
   c.save();c.globalCompositeOperation='screen';
@@ -157,7 +175,7 @@ export class WindArt{
   c.save();c.strokeStyle=`rgba(255,246,210,${.45+pulse*.35})`;c.lineWidth=4;
   c.beginPath();c.moveTo(cx-68,floor);c.quadraticCurveTo(cx,e.y+8,cx+68,floor);c.stroke();
   c.restore();
-  this.sign(c,e.x+36,floor-8,'终点','→');
+  this.sign(c,e.x+36-camera,floor-8,'终点','→');
  }
  private stirFlora(sim:SlimeSimulation,time:number){
   const dt=Math.min(.05,this.lastFlora?time-this.lastFlora:1/60);this.lastFlora=time;
@@ -176,6 +194,7 @@ export class WindArt{
   this.falls(c,camera);
   drawDeckGrass(c,this.grasses,camera,time,sim.groups().map(g=>sim.center(g)));
   if(this.level.dressing.length)drawDressing(c,this.level.dressing,camera,time,sim);
+  drawPortals(c,this.level.portals,camera,time);
   for(const s of this.level.signs??[])this.sign(c,s.x-camera,s.y,s.text,s.arrow);
   this.exitGate(c,camera,time);
   for(const d of this.level.dew){

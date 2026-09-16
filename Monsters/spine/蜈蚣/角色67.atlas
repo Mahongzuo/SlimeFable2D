@@ -1,0 +1,30 @@
+角色67.png
+size: 712,860
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+foot
+  bounds: 643, 428, 65, 92
+  offsets: 0, 0, 65, 92
+  index: -1
+yz
+  bounds: 428, 549, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+hand2
+  bounds: 267, 716, 119, 144
+  offsets: 0, 0, 119, 144
+  index: -1
+hand1
+  bounds: 549, 267, 163, 157
+  offsets: 0, 0, 163, 157
+  index: -1
+head
+  bounds: 0, 549, 263, 274
+  offsets: 0, 0, 263, 274
+  index: -1
+body
+  bounds: 0, 0, 545, 436
+  offsets: 0, 0, 545, 436
+  index: -1

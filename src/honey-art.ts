@@ -3,6 +3,7 @@ import type {HoneyLevel} from './honey-level';
 import type {Rect,SlimeSimulation} from './physics';
 import {WAX_REFORM,type WaxPlatform} from './wax';
 import {asset} from './asset';
+import {drawPortals} from './kit/view';
 type C=CanvasRenderingContext2D;
 type Img=HTMLImageElement|HTMLCanvasElement;
 const Y0=280;
@@ -202,6 +203,7 @@ export class HoneyArt {
   hex(c,mid,top+28,Math.min(26,w*.28));c.stroke();
   c.beginPath();c.moveTo(x+12,top);c.lineTo(mid-14,top+16);c.moveTo(x+w-12,top);c.lineTo(mid+14,top+16);c.stroke();
  }
+ syncLayout(){this.paintTerrain();}
  private paintTerrain(){
   const c=this.terrain.getContext('2d')!;c.clearRect(0,0,5000,1100);
   const mouth=c.createRadialGradient(80,560+Y0,8,80,560+Y0,150);
@@ -376,6 +378,7 @@ export class HoneyArt {
    c.save();c.translate(-camera,0);this.waxStone(c,w.x,w.y,w.w,w.h,w.x);c.restore();
   }
   this.drawCritters(c,camera,time);
+  drawPortals(c,this.level.portals,camera,time);
   for(const d of this.level.dew){
    if(d.got)continue;const x=d.x-camera,y=d.y+Math.sin(time*2+d.x)*4;
    const glow=c.createRadialGradient(x,y,1,x,y,20);glow.addColorStop(0,'#ffe08a66');glow.addColorStop(1,'#ffe08a00');c.fillStyle=glow;c.fillRect(x-20,y-20,40,40);

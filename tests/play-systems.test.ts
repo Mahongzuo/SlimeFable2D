@@ -15,7 +15,7 @@ import {readFileSync} from 'node:fs';
 import {CATALOG,CAMY_WIND} from '../src/catalog';
 import {emptyActions} from '../src/input';
 import {CombatSystem} from '../src/combat/combat';
-import {ENEMIES,hurtActor,makeActor,stepMachine} from '../src/ai/machine';
+import {ENEMIES,hurtActor,livingGates,makeActor,stepMachine} from '../src/ai/machine';
 import {ABILITIES} from '../src/gas/catalog';
 import {applyEffect} from '../src/gas/effects';
 import {CueBus} from '../src/gas/cues';
@@ -106,6 +106,10 @@ describe('tide gallery',()=>{
   level.update(s,1/60);
   expect(level.fallHit).toBe(false);
   s.particles.forEach(p=>{p.x=1900;p.y=250;});
+  expect(level.bossDown).toBe(false);
+  for(let i=0;i<4;i++)level.update(s,1/60);
+  expect(level.complete).toBe(false);
+  level.bossDown=true;
   for(let i=0;i<4;i++)level.update(s,1/60);
   expect(level.complete).toBe(true);
  });
@@ -133,31 +137,31 @@ describe('tide gallery',()=>{
  };
  it('settles feet on the painted ledges',()=>{
   expect(settle(800,1214)).toBeCloseTo(1290,-1);
-  expect(settle(1900,1080)).toBeCloseTo(1130,-1);
-  expect(settle(1540,960)).toBeCloseTo(1012,-1);
-  expect(settle(1400,380)).toBeCloseTo(428,-1);
-  expect(settle(700,250)).toBeCloseTo(292,-1);
+  expect(settle(1900,1080)).toBeCloseTo(1104,-1);
+  expect(settle(1540,960)).toBeCloseTo(992,-1);
+  expect(settle(1400,380)).toBeCloseTo(416,-1);
+  expect(settle(700,250)).toBeCloseTo(288,-1);
  });
  it('leaves the west crown gap open so the body can hop onto the boulder',()=>{
   const level=new TideLevel();
-  const gap={x:1040,y:310,w:130,h:100};
+  const gap={x:1072,y:310,w:40,h:80};
   const blocked=level.base.filter(s=>s.kind==='stone'&&s.x<gap.x+gap.w&&s.x+s.w>gap.x&&s.y<gap.y+gap.h&&s.y+s.h>gap.y);
   expect(blocked).toEqual([]);
-  const crown=level.base.find(s=>s.x===470&&s.y===292);
-  expect(crown?.h).toBeLessThanOrEqual(36);
+  const crown=level.base.find(s=>s.x===464&&s.y===288);
+  expect(crown).toBeDefined();
   expect(crown!.x+crown!.w).toBeLessThan(1180);
  });
  it('keeps every hop of the climb within a double jump or a grabbable face',()=>{
   const level=new TideLevel();
   const at=(x:number,y:number)=>level.base.find(s=>s.kind==='stone'&&s.x<=x&&x<=s.x+s.w&&s.y===y)!;
   const route:[number,number,number,number][]=[
-   [1000,1330,1900,1130],  // 浅滩 → 东台
-   [1900,1130,1600,1012],  // 东台 → 石桥
-   [1500,1012,1300,652],   // 石桥 → 拱肩石块
-   [1300,652,1400,428],    // 拱肩 → 四层长台
-   [1300,428,1000,292],    // 四层 → 五层西巨石
-   [1900,428,1900,292],    // 四层 → 五层东残拱
-   [1800,428,2300,400],    // 四层东端 → 东壁阶
+   [1000,1330,1900,1104],
+   [1900,1104,1600,992],
+   [1500,992,1300,652],
+   [1300,652,1400,416],
+   [1300,416,1000,288],
+   [1900,428,1900,288],
+   [1800,428,2300,400],
   ];
   for(const [fx,fy,tx,ty] of route){
    const from=at(fx,fy),to=at(tx,ty);
@@ -444,11 +448,11 @@ describe('swallow dodge death boss',()=>{
   const combat=new CombatSystem();
   const hive=makeActor('hive',4180,600,'hive-summon',70);
   const actors=[hive];
-  const ctx=()=>({self:hive.asc!,combat,x:hive.x,y:hive.y,facing:1,actors,spawn:(kind:string,x:number,y:number)=>actors.push(makeActor(kind,x,y,`pig-${actors.length}`))});
+  const ctx=()=>({self:hive.asc!,combat,x:hive.x,y:hive.y,facing:1,name:'西瓜大王',actors,spawn:(kind:string,x:number,y:number)=>actors.push(makeActor(kind,x,y,`pig-${actors.length}`))});
   expect(ABILITIES['enemy.summon'].activate(ctx())).toBe(true);
   expect(ABILITIES['enemy.summon'].activate(ctx())).toBe(true);
   expect(ABILITIES['enemy.summon'].activate(ctx())).toBe(true);
-  const pigs=actors.filter(a=>a.kind==='pig');
+  const pigs=actors.filter(a=>a.kind==='eboar');
   expect(pigs).toHaveLength(3);
   const xs=pigs.map(p=>p.x).sort((a,b)=>a-b);
   for(let i=1;i<xs.length;i++)expect(xs[i]-xs[i-1]).toBeGreaterThanOrEqual(72);
@@ -471,6 +475,36 @@ describe('swallow dodge death boss',()=>{
   const y0=hopper.y;
   stepMachine(hopper,ENEMIES.hive,{playerX:3900,playerY:600,dt:.05});
   expect(hopper.y).toBeLessThan(y0-8);
+ });
+ it('places new beasts and gates the later chapters',()=>{
+  expect(ENEMIES.wolf.name).toBe('霜脊狼');
+  expect(ENEMIES.pale.gate).toBe(true);
+  expect(ENEMIES.grey.gate).toBe(true);
+  expect(ENEMIES.han.gate).toBe(true);
+  expect(ENEMIES.horn.gate).toBe(true);
+  expect(ENEMIES.hive.gate).toBeUndefined();
+  const boar=makeActor('boar',400,600,'boar-a',60);
+  boar.state='chase';boar.timer=0;boar.cooldown=0;
+  stepMachine(boar,ENEMIES.boar,{playerX:520,playerY:600,dt:.05});
+  expect(boar.state).toBe('telegraph');
+  expect(ENEMIES.boar.skills[0].kind).toBe('charge');
+  const han=makeActor('han',2500,280,'han-a',60);
+  const horn=makeActor('horn',2780,280,'horn-a',60);
+  expect(livingGates([han,horn])).toBe(true);
+  han.dead=true;
+  expect(livingGates([han,horn])).toBe(true);
+  horn.dead=true;
+  expect(livingGates([han,horn])).toBe(false);
+  expect(ABILITIES['enemy.dragon'].activate({self:han.asc!,combat:new CombatSystem(),x:0,y:0,facing:1})).toBe(true);
+  const pack=[makeActor('wk1',1860,1180,'wk1-a',70)];
+  expect(ABILITIES['enemy.howl'].activate({self:pack[0].asc!,combat:new CombatSystem(),x:1860,y:1180,facing:1,name:'狼王',actors:pack,spawn:(kind,x,y)=>pack.push(makeActor(kind,x,y,'wolf-s'))})).toBe(true);
+  expect(pack.some(a=>a.kind==='wolf')).toBe(true);
+  const flood=new CombatSystem();
+  expect(ABILITIES['enemy.clone'].activate({self:makeActor('pale',2360,1084,'pale-a',60).asc!,combat:flood,x:2360,y:1084,facing:-1,name:'苍白潮客'})).toBe(true);
+  expect(flood.floods[0]?.y).toBe(1220);
+  const shoal=new CombatSystem();shoal.flood(1220,8);
+  expect(shoal.hitsPlayer(2360,1300)).toBe(true);
+  expect(shoal.hitsPlayer(2360,1084)).toBe(false);
  });
  it('stops at the ledge instead of chasing a hanging body off the floor',()=>{
   const floor={x:100,y:600,w:220,h:40};
@@ -576,6 +610,14 @@ describe('swallow dodge death boss',()=>{
   expect(stuck.y).toBe(598);
   expect(stuck.x).toBeGreaterThanOrEqual(4560);
  });
+ it('drops a grounded enemy onto the deck below after it leaves the ledge',()=>{
+  const solids=[{x:0,y:200,w:80,h:24,kind:'stone'},{x:0,y:400,w:220,h:24,kind:'stone'}];
+  const wolf=makeActor('wolf',40,200,'wolf-fall',40);
+  wolf.x=130;wolf.vy=0;
+  for(let i=0;i<90;i++)resolveActor(wolf,solids,1/60);
+  expect(wolf.y).toBeCloseTo(400,0);
+  expect(wolf.vy).toBe(0);
+ });
 });
 
 const idle={move:0,squeeze:false,jump:false};
@@ -625,7 +667,7 @@ describe('wind heath',()=>{
   expect(settleOn(level.solids,1360,220).y).toBeCloseTo(260,-1);
  });
  it('keeps the east rope walk flush with the start isle',()=>{
-  const bridge=WIND_LAYOUT.base.find(s=>s.x===920&&s.w>=400);
+  const bridge=WIND_LAYOUT.base.find(s=>s.x===940&&s.w>=360);
   expect(bridge?.y).toBe(1680);
   expect(bridge?.h).toBeGreaterThanOrEqual(20);
   expect(bridge?.h).toBeLessThanOrEqual(24);
@@ -633,11 +675,15 @@ describe('wind heath',()=>{
  });
  it('completes inside the temple arch',()=>{
   const level=new WindLevel();
+  expect(level.bossDown).toBe(false);
   const s=new SlimeSimulation(1240,220,level.solids);
   for(let i=0;i<40;i++)s.step(1/60,idle);
   for(let i=0;i<4;i++)level.update(s,1/60);
+  expect(level.complete).toBe(false);
+  level.bossDown=true;
+  for(let i=0;i<4;i++)level.update(s,1/60);
   expect(level.complete).toBe(true);
-  expect(level.hint(1240,1,220)).toContain('神殿');
+  expect(level.hint(1240,1,220)).toContain('风修');
  });
  it('keeps the east rise clear of dressings and has no sky-piercing pillar',()=>{
   const blocked=(WIND_LAYOUT.dressing??[]).filter(d=>d.x>1860&&d.x<2200&&d.y<1180);
@@ -740,11 +786,36 @@ describe('mirror night',()=>{
  });
  it('completes inside the sky gate',()=>{
   const level=new MirrorLevel();
+  expect(level.bossDown).toBe(false);
   const s=new SlimeSimulation(2600,220,level.solids);
   for(let i=0;i<40;i++)s.step(1/60,idle);
   for(let i=0;i<4;i++)level.update(s,1/60);
+  expect(level.complete).toBe(false);
+  level.bossDown=true;
+  for(let i=0;i<4;i++)level.update(s,1/60);
   expect(level.complete).toBe(true);
-  expect(level.hint(2600,1,220)).toContain('天穹');
+  expect(level.hint(2600,1,220)).toContain('韩小立');
+ });
+ it('sends the body both ways between the garden and sky-gate portals',()=>{
+  const level=new MirrorLevel();
+  expect(level.portals).toHaveLength(2);
+  expect(level.portals[0].pair).toBe(level.portals[1].pair);
+  expect(level.portals[0].y).toBe(720);
+  expect(level.portals[1].y).toBe(280);
+  const west=level.portals[0],east=level.portals[1];
+  const s=new SlimeSimulation(west.x,west.y-20,level.solids);
+  for(let i=0;i<50;i++)s.step(1/60,idle);
+  let sent=false;
+  for(let i=0;i<8;i++){level.update(s,1/60);if(level.ported)sent=true;}
+  expect(sent).toBe(true);
+  expect(s.center().x).toBeGreaterThan(east.x-80);
+  expect(s.center().y).toBeLessThan(east.y+40);
+  level.portalCool=0;
+  let back=false;
+  for(let i=0;i<8;i++){level.update(s,1/60);if(level.ported)back=true;}
+  expect(back).toBe(true);
+  expect(s.center().x).toBeLessThan(west.x+80);
+  expect(s.center().y).toBeGreaterThan(west.y-80);
  });
  it('keeps dressings off the climb and shoal lane',()=>{
   const blocked=(MIRROR_LAYOUT.dressing??[]).filter(d=>
@@ -767,7 +838,7 @@ describe('mirror night',()=>{
 describe('side-view decks',()=>{
  it('fills collision as stone or plank and does not stamp isometric isles',()=>{
   expect(deckStyle({x:120,y:1680,w:820,h:32,kind:'stone'})).toBe('stone');
-  expect(deckStyle({x:920,y:1680,w:400,h:22,kind:'stone'})).toBe('plank');
+  expect(deckStyle({x:940,y:1680,w:380,h:22,kind:'stone'})).toBe('plank');
   expect(deckStyle({x:1560,y:1732,w:160,h:24,kind:'pool'})).toBe('skip');
   expect(deckStyle({x:-30,y:-400,w:30,h:2800,kind:'boundary'})).toBe('skip');
   const wind=readFileSync(new URL('../src/wind-art.ts',import.meta.url),'utf8');

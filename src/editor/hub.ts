@@ -1,6 +1,6 @@
 import {CATALOG} from '../catalog';
-import {blankDoc,fromOfficial,SIZE_PRESETS} from './defaults';
-import {exportMap,importMap,listMaps,loadMap,removeMap,saveMap} from './store';
+import {blankDoc,fromOfficial,officialDoc,SIZE_PRESETS} from './defaults';
+import {clearOfficialOverride,exportMap,importMap,listMaps,loadMap,loadOfficialOverride,removeMap,saveMap} from './store';
 import type {MapDoc} from './schema';
 
 export function renderHub(root:HTMLElement,onOpen:(doc:MapDoc)=>void,onPlay:(doc:MapDoc)=>void,onBack:()=>void){
@@ -11,11 +11,18 @@ export function renderHub(root:HTMLElement,onOpen:(doc:MapDoc)=>void,onPlay:(doc
   <div class="overlay-card editor-hub-card">
    <div class="eyebrow"><span></span> MAP STUDIO</div>
    <h2>地图编辑器</h2>
-   <p>官方关只可复制。自己定尺寸，从素材库混搭草木、水池和纪念品。</p>
+   <p>官方关可以复制成自定义，也可以直接修改（保存后进官方关即生效，可恢复默认）。</p>
    <div class="editor-hub-cols">
     <section>
-     <h3>官方模板</h3>
-     ${ready.map(e=>`<button type="button" class="level-card" data-copy="${e.id}"><small>${String(e.index).padStart(2,'0')}</small><b>${e.name}</b><span>复制为自定义</span></button>`).join('')}
+     <h3>官方关卡</h3>
+     ${ready.map(e=>{
+      const over=loadOfficialOverride(e.id);
+      return `<div class="level-card official-card"><small>${String(e.index).padStart(2,'0')}</small><b>${e.name}</b><em>${over?'已改':'官方'}</em><span>
+       <button type="button" data-copy="${e.id}">复制</button>
+       <button type="button" data-edit="${e.id}">修改</button>
+       ${over?`<button type="button" data-reset="${e.id}">恢复默认</button>`:''}
+      </span></div>`;
+     }).join('')}
      <p class="settings-note">后六关官方制作中，可先新建并选用已有素材：${coming.map(e=>e.name).join('、')}</p>
     </section>
     <section>
@@ -68,6 +75,15 @@ export function renderHub(root:HTMLElement,onOpen:(doc:MapDoc)=>void,onPlay:(doc
  });
  root.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach(btn=>btn.onclick=()=>{
   const doc=fromOfficial(btn.dataset.copy!);if(doc)onOpen(doc);
+ });
+ root.querySelectorAll<HTMLButtonElement>('[data-edit]').forEach(btn=>btn.onclick=()=>{
+  const id=btn.dataset.edit!;
+  const doc=loadOfficialOverride(id)??officialDoc(id);
+  if(doc)onOpen(doc);
+ });
+ root.querySelectorAll<HTMLButtonElement>('[data-reset]').forEach(btn=>btn.onclick=()=>{
+  clearOfficialOverride(btn.dataset.reset!);
+  renderHub(root,onOpen,onPlay,onBack);
  });
  root.querySelectorAll<HTMLButtonElement>('[data-open]').forEach(btn=>btn.onclick=()=>{const doc=loadMap(btn.dataset.open!);if(doc)onOpen(doc);});
  root.querySelectorAll<HTMLButtonElement>('[data-play]').forEach(btn=>btn.onclick=()=>{const doc=loadMap(btn.dataset.play!);if(doc)onPlay(doc);});

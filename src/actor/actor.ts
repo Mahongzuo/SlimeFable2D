@@ -1,5 +1,7 @@
 import type {AbilitySystemComponent} from '../gas/asc';
 
+export const GROUNDED=new Set(['picnic','pig','hive','wolf','wolfb','boar','bear','eboar','cent','escort','herder','wk1','wk2','pale','grey','han','horn']);
+
 export type Faction='player'|'enemy'|'neutral';
 
 export type Actor={
@@ -35,12 +37,12 @@ export function overlaps(ax:number,ay:number,aw:number,ah:number,bx:number,by:nu
 }
 
 const ARENA_MIN=4560,ARENA_MAX=5160;
+const GRAVITY=1600;
+const MAX_FALL=980;
 
-export function resolveActor(actor:Actor,solids:Solid[]){
- const grounded=actor.state!=='hop'&&(actor.kind==='picnic'||actor.kind==='pig'||actor.kind==='hive');
- if(grounded)actor.y=actor.homeY;
+function pushX(actor:Actor,solids:Solid[]){
  for(const solid of solids){
-  if(solid.oneWay)continue;
+  if(solid.oneWay||solid.kind==='gate'||solid.kind==='pool')continue;
   const box=hitbox(actor);
   if(!overlaps(box.x,box.y,box.w,box.h,solid.x,solid.y,solid.w,solid.h))continue;
   const pushLeft=box.x+box.w-solid.x;
@@ -49,8 +51,48 @@ export function resolveActor(actor:Actor,solids:Solid[]){
   else actor.x+=pushRight;
   actor.vx=0;
  }
- if(grounded&&actor.homeX>4400){
-  actor.x=Math.max(ARENA_MIN,Math.min(ARENA_MAX,actor.x));
-  actor.y=actor.homeY;
+}
+
+function land(actor:Actor,solids:Solid[],dt:number){
+ const slop=Math.max(16,Math.abs(actor.vy)*dt+10);
+ let floor:number|undefined;
+ for(const solid of solids){
+  if(solid.kind==='boundary'||solid.kind==='gate')continue;
+  const left=actor.x-actor.w/2+6,right=actor.x+actor.w/2-6;
+  if(right<=solid.x||left>=solid.x+solid.w)continue;
+  const top=solid.y;
+  if(actor.vy<0){
+   if(solid.oneWay||solid.kind==='pool')continue;
+   const head=actor.y-actor.h;
+   if(head<solid.y+solid.h&&actor.y>solid.y+solid.h-slop){
+    actor.y=solid.y+solid.h+actor.h;actor.vy=0;
+   }
+   continue;
+  }
+  if(actor.y>=top&&actor.y<=top+slop)floor=floor===undefined?top:Math.min(floor,top);
  }
+ if(floor!==undefined){
+  actor.y=floor;actor.vy=0;
+  if(Math.abs(actor.homeY-floor)>20)actor.homeX=actor.x;
+  actor.homeY=floor;
+ }
+}
+
+export function resolveActor(actor:Actor,solids:Solid[],dt=0,skipGrav=false){
+ if(actor.kind==='picnic'){
+  if(actor.state!=='hop')actor.y=actor.homeY;
+  pushX(actor,solids);
+  if(actor.state!=='hop'&&actor.homeX>4400){
+   actor.x=Math.max(ARENA_MIN,Math.min(ARENA_MAX,actor.x));
+   actor.y=actor.homeY;
+  }
+  return;
+ }
+ pushX(actor,solids);
+ if(!GROUNDED.has(actor.kind))return;
+ if(dt>0&&!skipGrav){
+  actor.vy=Math.min(MAX_FALL,actor.vy+GRAVITY*dt);
+  actor.y+=actor.vy*dt;
+ }
+ land(actor,solids,dt);
 }

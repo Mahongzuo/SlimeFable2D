@@ -4,5 +4,6 @@ export * from './defaults';
 export * from './session';
 export * from './tools';
 export * from './draw';
+export * from './outliner';
 export {renderPalette,bindStamps} from './palette';
 export {renderHub} from './hub';

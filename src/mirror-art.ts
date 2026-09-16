@@ -2,9 +2,9 @@ import {W,H,canvas,rng} from './art';
 import {gapBelowDeck} from './art-key';
 import {asset} from './asset';
 import {MIRROR_HEIGHT,MIRROR_SHOAL,MIRROR_WIDTH} from './content/chapter5/mirror';
-import {drawDressing} from './kit/view';
+import {drawDressing,drawPortals} from './kit/view';
 import {MIRROR_DECK,drawDeckGrass,gustDeckGrass,paintBasin,paintDeck,scatterDeckGrass,stirDeckGrass,type DeckGrass} from './kit/ground';
-import {keyWhite,makeSlab,paintColumn,paintProp,paintSlab,type Slab} from './kit/slab';
+import {keyMatte,keyWhite,makeSlab,paintColumn,paintProp,paintSlab,type Slab} from './kit/slab';
 import type {Level} from './level';
 import type {Rect,SlimeSimulation} from './physics';
 import type {WaterSimulation} from './water';
@@ -22,6 +22,13 @@ const LANDMARKS:{id:'gate'|'altar'|'armillary';x:number;y:number;h:number}[]=[
  {id:'gate',x:2620,y:280,h:250},
  {id:'altar',x:2420,y:1180,h:210},
  {id:'armillary',x:860,y:720,h:200},
+];
+/** Midground silhouettes, baked onto the middle canvas. Never solid. */
+const SILS:{id:'ruin'|'spire'|'garden';x:number;y:number;h:number}[]=[
+ {id:'ruin',x:420,y:1040,h:240},
+ {id:'garden',x:1680,y:520,h:220},
+ {id:'spire',x:3040,y:820,h:280},
+ {id:'ruin',x:980,y:360,h:180},
 ];
 
 function load(src:string){
@@ -46,6 +53,7 @@ export class MirrorArt{
  private thin?:Slab;
  private column?:HTMLCanvasElement;
  private props:Partial<Record<'gate'|'altar'|'armillary',HTMLCanvasElement>>={};
+ private sils:Partial<Record<'ruin'|'spire'|'garden',HTMLCanvasElement>>={};
  constructor(public level:Level){
   this.paintFallback();
   void this.hydrate();
@@ -68,7 +76,11 @@ export class MirrorArt{
    load(asset('assets/mirror/gate.png')).then(i=>{this.props.gate=keyWhite(i);}).catch(()=>{}),
    load(asset('assets/mirror/altar.png')).then(i=>{this.props.altar=keyWhite(i);}).catch(()=>{}),
    load(asset('assets/mirror/armillary.png')).then(i=>{this.props.armillary=keyWhite(i);}).catch(()=>{}),
+   load(asset('assets/mirror/sil-ruin.png')).then(i=>{this.sils.ruin=keyMatte(i);}).catch(()=>{}),
+   load(asset('assets/mirror/sil-spire.png')).then(i=>{this.sils.spire=keyMatte(i);}).catch(()=>{}),
+   load(asset('assets/mirror/sil-garden.png')).then(i=>{this.sils.garden=keyMatte(i);}).catch(()=>{}),
   ]);
+  this.paintSils();
   this.paintTerrain();
   this.ready=true;
  }
@@ -82,15 +94,21 @@ export class MirrorArt{
   const f=this.far.getContext('2d')!;
   f.fillStyle='#c9e2f2';f.fillRect(0,0,MIRROR_WIDTH,MIRROR_HEIGHT);
   this.middle.getContext('2d')!.clearRect(0,0,MIRROR_WIDTH,MIRROR_HEIGHT);
+  this.paintSils();
   this.paintTerrain();
+ }
+ private paintSils(){
+  const c=this.middle.getContext('2d')!;
+  for(const s of SILS){const img=this.sils[s.id];if(img)paintProp(c,img,s.x,s.y,s.h,.9);}
  }
  private deck(c:C,s:Rect,solids:Rect[],r:()=>number){
   if(s.kind==='boundary'||s.kind==='pool')return;
   const gap=gapBelowDeck(s,solids);
   const slab=s.oneWay?this.thin:this.wide;
   if(!slab){paintDeck(c,s,r,MIRROR_DECK);return;}
-  paintSlab(c,slab,s.x,s.y,s.w,s.oneWay?64:Math.min(250,Math.max(120,gap-10)),gap);
+  paintSlab(c,slab,s.x,s.y,s.w,s.oneWay?110:Math.min(260,Math.max(160,gap-10)),gap);
  }
+ syncLayout(){this.paintTerrain();}
  private paintTerrain(){
   const c=this.terrain.getContext('2d')!,r=rng(773);
   c.clearRect(0,0,MIRROR_WIDTH,MIRROR_HEIGHT);
@@ -104,7 +122,7 @@ export class MirrorArt{
  drawLayers(c:C,camera:number,cameraY:number,shx=0,shy=0){
   c.drawImage(this.sky,0,0);
   c.drawImage(this.far,-camera*.15+shx*.25,cameraY*.12+shy*.25);
-  c.save();c.globalAlpha=.7;
+  c.save();c.globalAlpha=.84;
   c.drawImage(this.middle,-camera*.38+shx*.5,cameraY*.28+shy*.5);
   c.restore();
   c.drawImage(this.terrain,-camera+shx,cameraY+shy);
@@ -165,7 +183,7 @@ export class MirrorArt{
   c.save();c.strokeStyle=`rgba(210,236,255,${.45+pulse*.35})`;c.lineWidth=4;
   c.beginPath();c.moveTo(cx-68,floor);c.quadraticCurveTo(cx,e.y+8,cx+68,floor);c.stroke();
   c.restore();
-  this.sign(c,e.x+36,floor-8,'终点','→');
+  this.sign(c,e.x+36-camera,floor-8,'终点','→');
  }
  private stirFlora(sim:SlimeSimulation,time:number){
   const dt=Math.min(.05,this.lastFlora?time-this.lastFlora:1/60);this.lastFlora=time;
@@ -175,6 +193,7 @@ export class MirrorArt{
   this.stirFlora(sim,time);
   drawDeckGrass(c,this.grasses,camera,time,sim.groups().map(g=>sim.center(g)));
   if(this.level.dressing.length)drawDressing(c,this.level.dressing,camera,time,sim);
+  drawPortals(c,this.level.portals,camera,time);
   for(const s of this.level.signs??[])this.sign(c,s.x-camera,s.y,s.text,s.arrow);
   this.exitGate(c,camera,time);
   for(const d of this.level.dew){

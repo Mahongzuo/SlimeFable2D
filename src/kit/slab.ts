@@ -2,14 +2,22 @@ import {canvas} from '../art';
 import {deckFrac} from '../art-key';
 type C=CanvasRenderingContext2D;
 
-/** Flood the pure-white studio matte from the borders only, so pale stone inside the sprite survives. */
-export function keyWhite(img:HTMLImageElement|HTMLCanvasElement){
+/** Studio white, plus the gray/white checker cells AI bakes into “transparent” RGB PNGs. */
+function studioMatte(r:number,g:number,b:number,a:number,checker:boolean){
+ if(a<10)return true;
+ const sat=Math.max(r,g,b)-Math.min(r,g,b),luma=.3*r+.59*g+.11*b;
+ if(Math.min(r,g,b)>226&&sat<16)return true;
+ return checker&&sat<20&&luma>148;
+}
+
+/** Flood the studio matte from the borders only, so pale stone inside the sprite survives. */
+function keyStudio(img:HTMLImageElement|HTMLCanvasElement,checker:boolean){
  const w=img instanceof HTMLCanvasElement?img.width:img.naturalWidth;
  const h=img instanceof HTMLCanvasElement?img.height:img.naturalHeight;
  const cv=canvas(w,h),ctx=cv.getContext('2d')!;
  ctx.drawImage(img,0,0);
  const data=ctx.getImageData(0,0,w,h),d=data.data,n=w*h;
- const white=(p:number)=>{const i=p*4,r=d[i],g=d[i+1],b=d[i+2];return d[i+3]<10||(Math.min(r,g,b)>226&&Math.max(r,g,b)-Math.min(r,g,b)<16);};
+ const white=(p:number)=>{const i=p*4;return studioMatte(d[i],d[i+1],d[i+2],d[i+3],checker);};
  const seen=new Uint8Array(n),q=new Uint32Array(n);let head=0,tail=0;
  const push=(x:number,y:number)=>{if(x<0||y<0||x>=w||y>=h)return;const p=y*w+x;if(seen[p]||!white(p))return;seen[p]=1;q[tail++]=p;};
  for(let x=0;x<w;x++){push(x,0);push(x,h-1);}
@@ -32,6 +40,11 @@ export function keyWhite(img:HTMLImageElement|HTMLCanvasElement){
  out.getContext('2d')!.drawImage(cv,x0,y0,out.width,out.height,0,0,out.width,out.height);
  return out;
 }
+
+export function keyWhite(img:HTMLImageElement|HTMLCanvasElement){return keyStudio(img,false);}
+
+/** Same border flood as `keyWhite`, but also lifts baked checkerboard cells. */
+export function keyMatte(img:HTMLImageElement|HTMLCanvasElement){return keyStudio(img,true);}
 
 /** Side-view platform strip: `top` is the walkable row, caps are the rounded ends, the middle tiles. */
 export type Slab={img:HTMLCanvasElement;top:number;capW:number};

@@ -3,6 +3,7 @@ import {ENEMIES,hurtActor} from '../ai/machine';
 import {CueBus} from '../gas/cues';
 import type {StakeSpot} from '../content/types';
 import {asset} from '../asset';
+import {atlasFx,type AtlasClip} from '../vfx/atlas-fx';
 
 export type Slash={x:number;y:number;facing:number;t:number;life:number;r:number;step:number;damage:number;hits:Set<string>}
 export type Shot={x:number;y:number;vx:number;vy:number;r:number;alive:boolean;life:number;facing:number;age:number;trail:{x:number;y:number}[];home?:{id?:string;x:number;y:number};rippled?:boolean}
@@ -13,6 +14,13 @@ export type Juice={x:number;y:number;r:number;life:number;max:number}
 export type Shard={x:number;y:number;vx:number;vy:number;life:number;a:number}
 export type Arrow={x:number;y:number;vx:number;vy:number;r:number;alive:boolean;life:number;angle:number}
 export type Bolt={x:number;y:number;vx:number;vy:number;r:number;alive:boolean;life:number}
+export type Charge={x:number;y:number;vx:number;r:number;alive:boolean;life:number}
+export type Slam={x:number;y:number;t:number;life:number;r:number}
+export type Puddle={x:number;y:number;r:number;life:number;max:number;tick:number}
+export type Hawk={x:number;y:number;vx:number;vy:number;r:number;alive:boolean;life:number}
+export type Beam={x:number;y:number;tx:number;ty:number;t:number;life:number}
+export type Ring={x:number;y:number;t:number;life:number;r:number}
+export type Orbit={x:number;y:number;t:number;life:number;r:number}
 
 export const SLASH_LIFE=.18,SLASH_R=68,SHOT_R=13;
 const COMBO_WINDOW=.58;
@@ -33,6 +41,16 @@ export class CombatSystem {
  shards:Shard[]=[];
  arrows:Arrow[]=[];
  bolts:Bolt[]=[];
+ charges:Charge[]=[];
+ slams:Slam[]=[];
+ puddles:Puddle[]=[];
+ hawks:Hawk[]=[];
+ beams:Beam[]=[];
+ rings:Ring[]=[];
+ orbits:Orbit[]=[];
+ clips:AtlasClip[]=[];
+ floods:{y:number;t:number;life:number}[]=[];
+ pushX=0;
  smashed=false;
  cues=new CueBus();
  meleeCd=0;
@@ -86,7 +104,37 @@ export class CombatSystem {
    if(bolt.life<=0||solids.some(s=>!s.oneWay&&overlaps(bolt.x-bolt.r,bolt.y-bolt.r,bolt.r*2,bolt.r*2,s.x,s.y,s.w,s.h)))bolt.alive=false;
   }
   this.bolts=this.bolts.filter(b=>b.alive);
+  this.stepMore(dt,solids);
   this.stepHazards(dt,solids);
+ }
+ private stepMore(dt:number,solids:{x:number;y:number;w:number;h:number;oneWay?:boolean}[]){
+  this.pushX=0;
+  for(const item of this.charges){
+   if(!item.alive)continue;
+   item.x+=item.vx*dt;item.life-=dt;
+   if(item.life<=0||solids.some(s=>!s.oneWay&&overlaps(item.x-item.r,item.y-item.r,item.r*2,item.r*2,s.x,s.y,s.w,s.h)))item.alive=false;
+  }
+  this.charges=this.charges.filter(s=>s.alive);
+  for(const slam of this.slams)slam.t+=dt;
+  this.slams=this.slams.filter(s=>s.t<s.life);
+  for(const puddle of this.puddles){puddle.life-=dt;puddle.tick+=dt;}
+  this.puddles=this.puddles.filter(p=>p.life>0);
+  for(const hawk of this.hawks){
+   if(!hawk.alive)continue;
+   hawk.x+=hawk.vx*dt;hawk.y+=hawk.vy*dt;hawk.life-=dt;hawk.vy+=120*dt;
+   if(hawk.life<=0||solids.some(s=>!s.oneWay&&overlaps(hawk.x-hawk.r,hawk.y-hawk.r,hawk.r*2,hawk.r*2,s.x,s.y,s.w,s.h)))hawk.alive=false;
+  }
+  this.hawks=this.hawks.filter(h=>h.alive);
+  for(const beam of this.beams)beam.t+=dt;
+  this.beams=this.beams.filter(b=>b.t<b.life);
+  for(const ring of this.rings)ring.t+=dt;
+  this.rings=this.rings.filter(r=>r.t<r.life);
+  for(const orbit of this.orbits)orbit.t+=dt;
+  this.orbits=this.orbits.filter(o=>o.t<o.life);
+  for(const clip of this.clips)clip.t+=dt;
+  this.clips=this.clips.filter(c=>c.t<c.life);
+  for(const flood of this.floods)flood.t+=dt;
+  this.floods=this.floods.filter(f=>f.t<f.life);
  }
  private stepHazards(dt:number,solids:{x:number;y:number;w:number;h:number;oneWay?:boolean}[]){
   for(const melon of this.melons){
@@ -141,6 +189,56 @@ export class CombatSystem {
   const x=fromX,y=fromY-40,tx=toX,ty=toY-18;
   const dx=tx-x,dy=ty-y,d=Math.hypot(dx,dy)||1;
   this.bolts.push({x:x+dx/d*28,y:y+dy/d*28,vx:dx/d*340,vy:dy/d*340,r:12,alive:true,life:2.2});
+  this.burst('magic',fromX,fromY-36,.45);
+ }
+ burst(pack:string,x:number,y:number,life=.5,scale=1){
+  this.clips.push({pack,x,y,t:0,life,scale});
+ }
+ flood(y:number,life=7){
+  this.floods.push({y,t:0,life});
+  this.burst('shock',800,y,1,.9);
+ }
+ charge(x:number,y:number,facing:number){
+  this.charges.push({x:x+facing*28,y:y-16,vx:facing*340,r:18,alive:true,life:.45});
+  this.fx.push({kind:'bump',x,y:y-10,facing,t:0,life:.28});
+ }
+ slam(x:number,y:number,r=90){
+  this.slams.push({x,y,t:0,life:.42,r});
+  this.fx.push({kind:'smash',x,y,facing:1,t:0,life:.4,r});
+  this.burst('shock',x,y-20,.5,.7);
+ }
+ puddle(x:number,y:number,r=46,life=3.2){
+  this.puddles.push({x,y,r,life,max:life,tick:0});
+ }
+ hawk(fromX:number,fromY:number,toX:number,toY:number){
+  const x=fromX,y=fromY-56,dx=toX-x,dy=toY-18-y,d=Math.hypot(dx,dy)||1;
+  this.hawks.push({x,y,vx:dx/d*320,vy:dy/d*320-40,r:12,alive:true,life:2.1});
+  this.burst('bow',x,y,.4,.55);
+ }
+ drain(fromX:number,fromY:number,toX:number,toY:number){
+  this.beams.push({x:fromX,y:fromY-48,tx:toX,ty:toY-16,t:0,life:.55});
+  this.burst('magic',fromX,fromY-40,.45,.6);
+ }
+ mistDash(x:number,y:number,facing:number){
+  this.charges.push({x:x+facing*20,y:y-20,vx:facing*420,r:20,alive:true,life:.28});
+  this.fx.push({kind:'wave',x,y:y-12,facing,t:0,life:.4,r:24});
+ }
+ gale(x:number,y:number,facing:number){
+  this.fx.push({kind:'wave',x,y:y-8,facing,t:0,life:.5,r:36});
+  this.burst('slash',x+facing*40,y-24,.4,.7);
+  this.pushX=facing*220;
+ }
+ ring(x:number,y:number){
+  this.rings.push({x,y,t:0,life:.85,r:36});
+  this.burst('shock',x,y-10,.6,.8);
+ }
+ dragon(x:number,y:number){
+  this.orbits.push({x,y:y-20,t:0,life:2.4,r:78});
+  this.burst('dragon',x,y-30,1.2,1.05);
+ }
+ frost(fromX:number,fromY:number,toX:number,toY:number){
+  const x=fromX,y=fromY-36,dx=toX-x,dy=toY-18-y,d=Math.hypot(dx,dy)||1;
+  this.bolts.push({x:x+dx/d*24,y:y+dy/d*24,vx:dx/d*300,vy:dy/d*300,r:11,alive:true,life:2});
  }
  suck(x:number,y:number){
   this.fx.push({kind:'suck',x,y,facing:1,t:0,life:.45,r:90});
@@ -210,6 +308,10 @@ export class CombatSystem {
    const box=hitbox(actor);
    const dmg=this.takeHit(`actor:${actor.id}`,box.x,box.y,box.w,box.h);
    if(!dmg)continue;
+   if(actor.kind==='bear'&&!this.slashes.some(s=>s.hits.has(`actor:${actor.id}`))){
+    if(!actor.asc?.has('bear.pad')){actor.asc?.hold('bear.pad',10);continue;}
+    actor.asc.tags.remove('bear.pad');
+   }
    if(hurtActor(actor,dmg,this.cues)){
     const def=ENEMIES[actor.kind];
     if(def){
@@ -245,6 +347,34 @@ export class CombatSystem {
   for(const fx of this.fx){
    if(fx.kind==='wave'&&fx.t<0.22&&Math.hypot(fx.x-x,fx.y-y)<(fx.r??40)+r+fx.t*180)return true;
   }
+  for(const item of this.charges){
+   if(item.alive&&Math.hypot(item.x-x,item.y-y)<r+item.r){item.alive=false;return true;}
+  }
+  for(const slam of this.slams){
+   if(slam.t<0.2&&Math.hypot(slam.x-x,slam.y-y)<slam.r+r)return true;
+  }
+  for(const puddle of this.puddles){
+   if(puddle.tick>=.45&&Math.hypot(puddle.x-x,puddle.y-y)<puddle.r+r){puddle.tick=0;return true;}
+  }
+  for(const hawk of this.hawks){
+   if(hawk.alive&&Math.hypot(hawk.x-x,hawk.y-y)<r+hawk.r){hawk.alive=false;return true;}
+  }
+  for(const beam of this.beams){
+   if(beam.t<beam.life){
+    const px=beam.x+(beam.tx-beam.x)*(beam.t/beam.life),py=beam.y+(beam.ty-beam.y)*(beam.t/beam.life);
+    if(Math.hypot(px-x,py-y)<r+16)return true;
+   }
+  }
+  for(const ring of this.rings){
+   const rad=ring.r+ring.t*210;
+   const d=Math.hypot(ring.x-x,ring.y-y);
+   if(Math.abs(d-rad)<18+r*.3)return true;
+  }
+  for(const orbit of this.orbits){
+   const a=orbit.t*4.2,ox=orbit.x+Math.cos(a)*orbit.r,oy=orbit.y+Math.sin(a)*orbit.r*.45;
+   if(Math.hypot(ox-x,oy-y)<r+22)return true;
+  }
+  if(this.floods.some(f=>y>f.y+8))return true;
   return false;
  }
  lastStep(){return this.slashes[0]?.step??0;}
@@ -431,6 +561,38 @@ export function drawCombat(c:CanvasRenderingContext2D,combat:CombatSystem,camera
   g.addColorStop(0,'#fff4b0');g.addColorStop(.45,'#f0c45a');g.addColorStop(1,'#c47a2000');
   c.fillStyle=g;c.beginPath();c.arc(spore.x-camera,spore.y,16,0,Math.PI*2);c.fill();
   c.fillStyle='#ffe08a';c.beginPath();c.arc(spore.x-camera,spore.y,8,0,Math.PI*2);c.fill();
+ }
+ atlasFx.draw(c,combat.clips,camera);
+ for(const puddle of combat.puddles){
+  const fade=puddle.life/puddle.max;
+  c.fillStyle=`rgba(60,180,70,${.22*fade})`;
+  c.beginPath();c.ellipse(puddle.x-camera,puddle.y+4,puddle.r,10,0,0,Math.PI*2);c.fill();
+ }
+ for(const hawk of combat.hawks){
+  c.fillStyle='#c8a060';c.beginPath();c.ellipse(hawk.x-camera,hawk.y,10,5,0,0,Math.PI*2);c.fill();
+  c.fillStyle='#3a2a18';c.beginPath();c.arc(hawk.x-camera+6,hawk.y-2,3,0,Math.PI*2);c.fill();
+ }
+ for(const beam of combat.beams){
+  const u=beam.t/beam.life;
+  c.strokeStyle=`rgba(180,40,70,${.75*(1-u)})`;c.lineWidth=6;
+  c.beginPath();c.moveTo(beam.x-camera,beam.y);c.lineTo(beam.tx-camera,beam.ty);c.stroke();
+ }
+ for(const ring of combat.rings){
+  const rad=ring.r+ring.t*210,fade=1-ring.t/ring.life;
+  c.strokeStyle=`rgba(230,200,90,${.8*fade})`;c.lineWidth=5;
+  c.beginPath();c.arc(ring.x-camera,ring.y,rad,0,Math.PI*2);c.stroke();
+ }
+ for(const orbit of combat.orbits){
+  const a=orbit.t*4.2,ox=orbit.x+Math.cos(a)*orbit.r,oy=orbit.y+Math.sin(a)*orbit.r*.45;
+  c.fillStyle='#f6d56a';c.beginPath();c.arc(ox-camera,oy,14,0,Math.PI*2);c.fill();
+ }
+ for(const flood of combat.floods){
+  const fade=.28*(1-flood.t/flood.life);
+  c.fillStyle=`rgba(40,90,140,${fade})`;
+  c.fillRect(-camera,flood.y,4000,900);
+ }
+ for(const item of combat.charges){
+  c.fillStyle='rgba(255,80,50,.35)';c.beginPath();c.ellipse(item.x-camera,item.y,item.r,item.r*.6,0,0,Math.PI*2);c.fill();
  }
  for(const floater of combat.cues.floaters){
   const u=floater.life/floater.max;

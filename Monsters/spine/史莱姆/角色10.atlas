@@ -1,0 +1,14 @@
+角色10.png
+size: 564,658
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+yz
+  bounds: 0, 568, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+head
+  bounds: 0, 0, 564, 453
+  offsets: 0, 0, 564, 453
+  index: -1

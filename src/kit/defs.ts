@@ -20,7 +20,7 @@ export type KitEntry={
  dewSkin?:string;
  souvenirId?:string;
  actorKind?:string;
- interactKind?:'plate'|'gate'|'stake'|'checkpoint'|'exit'|'win-line'|'hint'|'area';
+ interactKind?:'plate'|'gate'|'stake'|'checkpoint'|'exit'|'win-line'|'hint'|'area'|'portal';
  mark:string;
 };
 
@@ -30,4 +30,4 @@ export const CATEGORY_LABEL:Record<KitCategory,string>={
  terrain:'地形',water:'水体',flora:'草木',prop:'摆件',collect:'收集',interact:'交互',enemy:'敌人',critter:'小动物',sign:'路牌',
 };
 
-export const CHAPTER_MARK:Record<string,string>={forest:'苔',honey:'蜜',tide:'潮',wind:'风'};
+export const CHAPTER_MARK:Record<string,string>={forest:'苔',honey:'蜜',tide:'潮',wind:'风',mirror:'镜'};

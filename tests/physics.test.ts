@@ -68,11 +68,21 @@ describe('PBF slime',()=>{
   for(let i=0;i<90;i++)s.step(1/120,{...idle,climb:-1});
   expect(s.center().y).toBeGreaterThan(y+20);
  });
+ it('lands on a one-way deck after jumping up through it, even if squeeze was held in the air',()=>{
+  const deck=[{x:80,y:500,w:280,h:32,oneWay:true as const},{x:-200,y:600,w:800,h:80}];
+  const s=new SlimeSimulation(200,550,deck);
+  for(let i=0;i<80;i++)s.step(1/120,idle);
+  s.step(1/120,{...idle,jump:true});
+  for(let i=0;i<16;i++)s.step(1/120,{...idle,jumpHeld:true,squeeze:true});
+  for(let i=0;i<90;i++)s.step(1/120,idle);
+  expect(s.center().y).toBeLessThan(498);
+  expect(s.center().y).toBeGreaterThan(430);
+  expect(s.particles.some(p=>p.ground)).toBe(true);
+ });
  it('recalls scraped particles after four seconds, ignoring the wall',()=>{
-  const wall={x:196,y:400,w:10,h:220};
+  const wall={x:200,y:200,w:200,h:500};
   const s=new SlimeSimulation(200,550,[...floor,wall]);
-  const mid=Math.floor(s.particles.length/2);
-  s.particles.forEach((p,i)=>{p.x=i<mid?150:250;p.y=550;p.vx=0;p.vy=0;p.ox=p.x;p.oy=p.y;});
+  s.particles.forEach((p,i)=>{p.x=i<20?80:480;p.y=550;p.vx=0;p.vy=0;p.ox=p.x;p.oy=p.y;});
   for(let i=0;i<360;i++)s.step(1/120,idle);
   expect(s.recalled).toBe(false);
   expect(Math.max(...s.particles.map(p=>p.x))-Math.min(...s.particles.map(p=>p.x))).toBeGreaterThan(70);

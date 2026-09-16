@@ -1,0 +1,26 @@
+角色8.png
+size: 682,688
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+footC
+  bounds: 204, 508, 110, 180
+  offsets: 0, 0, 110, 180
+  index: -1
+yz
+  bounds: 508, 318, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+head
+  bounds: 0, 384, 200, 230
+  offsets: 0, 0, 200, 230
+  index: -1
+footA
+  bounds: 384, 204, 120, 200
+  offsets: 0, 0, 120, 200
+  index: -1
+body
+  bounds: 0, 0, 380, 250
+  offsets: 0, 0, 380, 250
+  index: -1

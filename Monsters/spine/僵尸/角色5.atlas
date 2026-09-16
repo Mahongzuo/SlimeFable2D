@@ -1,0 +1,34 @@
+角色5.png
+size: 650,786
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+handR
+  bounds: 359, 0, 291, 132
+  offsets: 0, 0, 291, 132
+  index: -1
+yz
+  bounds: 359, 312, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+head
+  bounds: 136, 359, 172, 177
+  offsets: 0, 0, 172, 177
+  index: -1
+handL
+  bounds: 0, 654, 291, 132
+  offsets: 0, 0, 291, 132
+  index: -1
+footL
+  bounds: 312, 537, 100, 135
+  offsets: 0, 0, 100, 135
+  index: -1
+footR
+  bounds: 537, 416, 98, 137
+  offsets: 0, 0, 98, 137
+  index: -1
+body
+  bounds: 0, 0, 269, 355
+  offsets: 0, 0, 269, 355
+  index: -1

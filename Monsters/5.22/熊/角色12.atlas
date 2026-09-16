@@ -1,0 +1,34 @@
+角色12.png
+size: 697,791
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+footR2
+  bounds: 534, 476, 163, 166
+  offsets: 0, 0, 163, 166
+  index: -1
+yz
+  bounds: 476, 701, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+footL2
+  bounds: 303, 534, 169, 170
+  offsets: 0, 0, 169, 170
+  index: -1
+head
+  bounds: 303, 0, 260, 260
+  offsets: 0, 0, 260, 260
+  index: -1
+footL
+  bounds: 0, 567, 272, 201
+  offsets: 0, 0, 272, 201
+  index: -1
+footR
+  bounds: 264, 303, 266, 167
+  offsets: 0, 0, 266, 167
+  index: -1
+body
+  bounds: 0, 0, 259, 299
+  offsets: 0, 0, 259, 299
+  index: -1

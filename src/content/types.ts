@@ -12,6 +12,8 @@ export type HintBand={x0:number;x1:number;y0?:number;y1?:number;text:string}
 export type CheckTrigger={x:number;y:number;at:{x:number;y:number;w:number;h:number}}
 export type WinCond={kind:'line';x:number}|{kind:'zone';x:number;y:number;w:number;h:number}
 export type DressingSpot={id:string;kit:string;x:number;y:number;w?:number;h?:number;s?:number;flip?:number}
+/** Two gates that share `pair` send the body both ways. */
+export type PortalSpot={id:string;x:number;y:number;pair:string;s?:number}
 
 export type LevelLayout={
  id:string;
@@ -37,6 +39,7 @@ export type LevelLayout={
  checks?:CheckTrigger[];
  win?:WinCond;
  dressing?:DressingSpot[];
+ portals?:PortalSpot[];
 }
 
 export function cloneLayout(layout:LevelLayout):LevelLayout{
@@ -60,5 +63,6 @@ export function cloneLayout(layout:LevelLayout):LevelLayout{
   checks:layout.checks?.map(ch=>({...ch,at:{...ch.at}})),
   win:layout.win?{...layout.win}:undefined,
   dressing:layout.dressing?.map(d=>({...d})),
+  portals:layout.portals?.map(p=>({...p})),
  };
 }

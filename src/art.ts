@@ -1,7 +1,7 @@
 import { type Rect, type SlimeSimulation } from './physics';
 import { Level, WORLD_HEIGHT, WORLD_WIDTH } from './level';
 import { crawlSnail, wanderMoth, type ForestCritter } from './fauna/critters';
-import { drawDressing } from './kit/view';
+import { drawDressing,drawPortals } from './kit/view';
 import { isCustomId } from './editor/schema';
 type C=CanvasRenderingContext2D;
 export const W=1280,H=720;
@@ -69,6 +69,7 @@ export class ForestArt {
   this.terrain=canvas(Math.max(1280,level.width),Math.max(720,level.height));
   this.paintSky();this.paintForest();this.paintTerrain();this.scatterCritters();
  }
+ syncLayout(){this.paintTerrain();}
  private scatterCritters(){
   if(this.custom)return;
   const r=rng(41);
@@ -252,6 +253,7 @@ export class ForestArt {
   if(this.level.checkpoint.x>200){const x=this.level.checkpoint.x-camera,y=this.level.checkpoint.y+50;ellipse(c,x,y,17,3,'#dfedac55');c.fillStyle='#dcf3b4';c.fillRect(x-2,y-23,4,20);ellipse(c,x,y-23,5,5,'#f4ffce');}
   if(this.level.id==='forest'){const hx=4090-camera;const glow=c.createRadialGradient(hx,555,5,hx,555,85);glow.addColorStop(0,'#e7e99999');glow.addColorStop(.5,'#c7dd7844');glow.addColorStop(1,'#bfde7300');c.fillStyle=glow;c.fillRect(hx-85,470,170,170);}
   if(this.level.dressing.length)drawDressing(c,this.level.dressing,camera,time,sim);
+  drawPortals(c,this.level.portals,camera,time);
   const exit=this.level.exit;
   if(exit){
    const cx=exit.x+exit.w/2-camera,floor=exit.y+exit.h,pulse=.62+.38*Math.sin(time*2.1);

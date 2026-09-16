@@ -1,0 +1,38 @@
+角色10.png
+size: 749,944
+format: RGBA8888
+filter: Linear,Linear
+pma: true
+repeat: none
+foot_FR
+  bounds: 526, 0, 177, 237
+  offsets: 0, 0, 177, 237
+  index: -1
+gunR
+  bounds: 309, 753, 195, 149
+  offsets: 0, 0, 195, 149
+  index: -1
+gunL
+  bounds: 529, 309, 220, 154
+  offsets: 0, 0, 220, 154
+  index: -1
+yz
+  bounds: 467, 529, 174, 90
+  offsets: 0, 0, 174, 90
+  index: -1
+foot_FL
+  bounds: 0, 707, 177, 237
+  offsets: 0, 0, 177, 237
+  index: -1
+foot_BR
+  bounds: 309, 290, 201, 235
+  offsets: 0, 0, 201, 235
+  index: -1
+head
+  bounds: 0, 0, 305, 217
+  offsets: 0, 0, 305, 217
+  index: -1
+body
+  bounds: 0, 309, 286, 213
+  offsets: 0, 0, 286, 213
+  index: -1

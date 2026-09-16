@@ -8,11 +8,11 @@ import {WaterSimulation} from './water';
 import {emptyActions,type Actions} from './input';
 import {FOREST_LAYOUT} from './content/chapter1/forest';
 import type {LevelLayout} from './content/types';
-import {isCustomId} from './editor/schema';
-import {loadMap} from './editor/store';
+import {isCustomId,isOfficialId} from './editor/schema';
+import {loadMap,loadOfficialOverride} from './editor/store';
 import {CAMY_LOCKED,type LevelFeatures} from './catalog';
 import {CombatSystem} from './combat/combat';
-import {ENEMIES,activeSkill,makeActor,stepMachine} from './ai/machine';
+import {ENEMIES,activeSkill,isBoss,livingGates,makeActor,stepMachine} from './ai/machine';
 import {type Actor} from './actor/actor';
 import {AbilitySystemComponent} from './gas/asc';
 import {applyEffect} from './gas/effects';
@@ -35,6 +35,7 @@ export class Adventure {
  started=false;paused=false;dead=false;linger=false;debug=false;fromEditor=false;camera=0;cameraY=0;levelVersion=0;time=0;elapsed=0;
  private keepLayout?:LevelLayout;
  keepFeatures?:LevelFeatures;
+ keepSource?:string;
  name='史莱姆';notice='';noticeUntil=0;
  notices:{text:string;until:number}[]=[];
  asc=new AbilitySystemComponent({hp:MAX_HEARTS,maxHp:MAX_HEARTS,ammo:MAX_AMMO,attack:1});
@@ -59,12 +60,15 @@ export class Adventure {
  private wet=false;private grounded=false;private airTime=0;
  constructor(){this.sim.water=this.level.water;this.bootActors();}
  selectLevel(id:string,layout?:LevelLayout){
-  const custom=layout??(isCustomId(id)?loadMap(id)?.layout:undefined);
-  this.keepLayout=custom;
-  this.level=(!custom&&id==='honey')?new HoneyLevel():(!custom&&id==='tide')?new TideLevel():(!custom&&id==='wind')?new WindLevel():(!custom&&id==='mirror')?new MirrorLevel():new Level(custom??FOREST_LAYOUT);
-  if(custom&&this.keepFeatures)this.level.features=this.keepFeatures;
+  const stored=isCustomId(id)?loadMap(id):isOfficialId(id)?loadOfficialOverride(id):undefined;
+  const used=layout??stored?.layout;
+  const chapter=stored?.source??(isOfficialId(id)?id:this.keepSource)??'forest';
+  this.keepLayout=used;
+  this.level=chapter==='honey'?new HoneyLevel(used):chapter==='tide'?new TideLevel(used):chapter==='wind'?new WindLevel(used):chapter==='mirror'?new MirrorLevel(used):new Level(used??FOREST_LAYOUT);
+  if(used&&this.keepFeatures)this.level.features=this.keepFeatures;
+  else if(stored?.features)this.level.features=stored.features;
   this.sim=new SlimeSimulation(this.level.checkpoint.x,this.level.checkpoint.y,this.level.solids);
-  this.sim.water=this.level.id==='honey'&&!custom?null:this.level.id==='tide'&&!custom?(this.level as TideLevel).bodyAt(this.level.checkpoint.x,this.level.checkpoint.y):this.level.id==='mirror'&&!custom?(this.level as MirrorLevel).bodyAt(this.level.checkpoint.x,this.level.checkpoint.y):this.level.water;
+  this.sim.water=this.level instanceof HoneyLevel?null:this.level instanceof TideLevel?this.level.bodyAt(this.level.checkpoint.x,this.level.checkpoint.y):this.level instanceof MirrorLevel?this.level.bodyAt(this.level.checkpoint.x,this.level.checkpoint.y):this.level.water;
   this.water=new WaterSimulation(this.level.water);
   this.camera=this.cameraY=this.elapsed=0;this.paused=false;this.dead=false;this.linger=false;this.accumulator=0;this.clearInput();
   this.resetVitals();this.bootActors();this.mood=new MoodDirector();this.levelVersion++;
@@ -259,7 +263,8 @@ export class Adventure {
   this.defeated[actor.kind]=(this.defeated[actor.kind]??0)+1;
   const def=ENEMIES[actor.kind];
   if(def?.drop&&Math.random()<def.drop.chance&&this.pack.add(def.drop.id))this.cue('dew');
-  if(def?.boss){this.level.bossDown=true;this.message(`击败了${def.name}`);}
+  if(def?.boss)this.message(`击败了${def.name}`);
+  if(def?.gate||this.level.enemies.some(e=>ENEMIES[e.kind]?.gate))this.level.bossDown=!livingGates(this.actors);
  }
  tick(delta:number,actions?:Actions){
   if(actions)this.apply(actions);
@@ -285,7 +290,8 @@ export class Adventure {
    this.jumpQueued=false;this.level.update(this.sim,1/120);
    if(this.started&&this.level instanceof TideLevel&&this.level.fallHit){this.cue('splash');this.sim.impactJelly(.7);}
    const dewAfter=this.level.dew.filter(d=>d.got).length;
-   if(dewAfter>dewBefore){
+    if(this.level.ported){this.message('穿过星门');this.mood.pulse('happy',.7,36);}
+    if(dewAfter>dewBefore){
     this.message(`拾到一颗${this.level.id==='honey'?'蜜露':this.level.id==='tide'?'盐晶':'晨露'} · ${dewAfter} / ${this.level.dew.length}`);
     this.mood.pulse('happy',.9,45);
     this.sim.impactJelly(1.3);
@@ -428,9 +434,9 @@ export class Adventure {
    actor.asc?.step(dt);
    const def=ENEMIES[actor.kind]??ENEMIES.cap;
    const was=actor.state;
-   const incomingMelee=def.boss&&this.combat.slashes.some(s=>Math.hypot(s.x-actor.x,s.y-(actor.y-actor.h*.45))<s.r+36);
+   const incomingMelee=(def.boss||actor.kind==='escort')&&this.combat.slashes.some(s=>Math.hypot(s.x-actor.x,s.y-(actor.y-actor.h*.45))<s.r+36);
    const incomingShot=def.boss&&this.combat.shots.some(s=>s.alive&&Math.hypot(s.x-actor.x,s.y-(actor.y-actor.h*.4))<90);
-   stepMachine(actor,def,{playerX:body.x,playerY:body.y,dt,solids:this.level.solids,incomingMelee,incomingShot,playerGrounded:this.grounded});
+   stepMachine(actor,def,{playerX:body.x,playerY:body.y,dt,solids:this.level.solids,incomingMelee,incomingShot,playerGrounded:this.grounded,allies:this.actors});
    if(was==='telegraph'&&actor.state==='attack'){
     const skill=activeSkill(actor,def);
     if(actor.asc)tryActivate(actor.asc,`enemy.${skill.kind}`,{
@@ -439,29 +445,53 @@ export class Adventure {
      spawn:(kind,x,y)=>this.spawn(kind,x,y),
      hitPlayer:(damage,why)=>this.hurt(damage,why),
     });
-    if(skill.kind==='summon')this.cue('summon');
-    else if(skill.kind==='melon'||skill.kind==='bow')this.cue('melon');
-    else if(skill.kind==='ult'||skill.kind==='magic'){
-     if(skill.kind==='ult')this.shake=Math.max(this.shake,10);
+    if(skill.kind==='summon'||skill.kind==='howl')this.cue('summon');
+    else if(skill.kind==='melon'||skill.kind==='bow'||skill.kind==='hawk')this.cue('melon');
+    else if(skill.kind==='charge'||skill.kind==='slam'||skill.kind==='pounce')this.cue('smash');
+    else if(skill.kind==='ult'||skill.kind==='magic'||skill.kind==='dragon'||skill.kind==='drain'||skill.kind==='ring'||skill.kind==='clone'){
+     if(skill.kind==='ult'||skill.kind==='dragon')this.shake=Math.max(this.shake,10);
      this.cue('ult');
-    }
+    }else if(skill.kind==='gale'||skill.kind==='parry')this.cue('slash');
    }
    if(actor.kind==='hive'&&actor.asc&&actor.state!=='idle'&&actor.state!=='patrol'){
     if(!actor.asc.cds.has('enemy.summon'))actor.asc.setCd('enemy.summon',5);
     else if(tryActivate(actor.asc,'enemy.summon',{
-     self:actor.asc,combat:this.combat,x:actor.x,y:actor.y,facing:actor.facing,
+     self:actor.asc,combat:this.combat,x:actor.x,y:actor.y,facing:actor.facing,name:def.name,
      actors:this.actors,spawn:(kind,x,y)=>this.spawn(kind,x,y),
     }))this.cue('summon');
    }
+   if((actor.kind==='han'||actor.kind==='horn')&&actor.hp<=actor.maxHp*.4&&actor.asc&&!actor.asc.has('boss.sync')){
+    const partner=this.actors.find(a=>a.id!==actor.id&&(a.kind==='han'||a.kind==='horn')&&!a.dead);
+    if(partner){
+     actor.asc.hold('boss.sync',20);partner.asc?.hold('boss.sync',20);
+     tryActivate(actor.asc,actor.kind==='han'?'enemy.dragon':'enemy.clone',{
+      self:actor.asc,combat:this.combat,x:actor.x,y:actor.y,facing:actor.facing,
+      targetX:body.x,targetY:body.y,name:def.name,actors:this.actors,
+     });
+     this.shake=Math.max(this.shake,12);this.cue('ult');
+    }
+   }
   }
-  if(!this.level.bossDown&&this.actors.some(a=>a.kind==='picnic'&&a.dead))this.level.bossDown=true;
+  if(this.level.enemies.some(e=>ENEMIES[e.kind]?.gate))this.level.bossDown=!livingGates(this.actors);
   if(this.combat.hitsPlayer(body.x,body.y))this.hurt(1,'被打到了身体');
+  if(this.combat.pushX){
+   const push=this.combat.pushX*dt;
+   for(const p of this.sim.particles)if(p.group===this.sim.activeGroup)p.x+=push;
+  }
  }
 }
 
 export function bossBar(adventure:Adventure){
- const boss=adventure.nearestBoss(540);
- if(!boss)return {visible:false,name:'',hp:0,maxHp:0};
- return {visible:true,name:ENEMIES[boss.kind]?.name??boss.kind,hp:boss.hp,maxHp:boss.maxHp};
+ const bosses=adventure.actors.filter(a=>isBoss(a.kind)&&(!a.dead||a.state==='dying')).map(a=>{
+  const d=Math.hypot(a.x-adventure.sim.center().x,a.y-adventure.sim.center().y);
+  return {actor:a,d};
+ }).filter(item=>item.d<540).sort((a,b)=>a.d-b.d);
+ if(!bosses.length)return {visible:false,name:'',hp:0,maxHp:0};
+ const first=bosses[0].actor;
+ const second=bosses[1]?.actor;
+ return {
+  visible:true,name:ENEMIES[first.kind]?.name??first.kind,hp:first.hp,maxHp:first.maxHp,
+  other:second?{name:ENEMIES[second.kind]?.name??second.kind,hp:second.hp,maxHp:second.maxHp}:undefined,
+ };
 }
 

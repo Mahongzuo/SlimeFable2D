@@ -5,6 +5,8 @@ import type {StakeSpot} from '../content/types';
 import {asset} from '../asset';
 import {HiveArt} from './hive';
 import {NangongArt} from './nangong';
+import {SpineActor} from './spine-actor';
+import {SPINE_SPECS} from './roster';
 
 type Img=HTMLImageElement|HTMLCanvasElement;
 type Sheet={img:HTMLCanvasElement;frames:number;pad:number};
@@ -221,6 +223,7 @@ export class EnemyArt {
  ready=false;
  nangong=new NangongArt();
  hive=new HiveArt();
+ spines=new Map<string,SpineActor>();
  imgs:{cap:Img;spore:Img;vine:Img}={cap:paintCap(),spore:paintSpore(),vine:paintVine()};
  sheets:{idle:Sheet;walk:Sheet;castPig:Sheet;castMelon:Sheet;ult:Sheet;hurt:Sheet;pig:Sheet;melon:Sheet;chase:Sheet;melee:Sheet;pigRun:Sheet;pigAttack:Sheet}={
   idle:paintGirl(),walk:paintGirl(),castPig:paintGirl(),
@@ -228,7 +231,10 @@ export class EnemyArt {
   pig:paintPig(),melon:paintPig(),chase:paintGirl(),melee:paintGirl(),
   pigRun:paintPig(),pigAttack:paintPig(),
  };
- constructor(){void this.hydrate();}
+ constructor(){
+  for(const [kind,spec] of Object.entries(SPINE_SPECS))this.spines.set(kind,new SpineActor(spec));
+  void this.hydrate();
+ }
  async hydrate(){
   const [cap,spore,vine]=await Promise.all([
    optional(asset('assets/enemies/cap.png')),optional(asset('assets/enemies/spore.png')),optional(asset('assets/enemies/vine.png')),
@@ -300,9 +306,15 @@ export class EnemyArt {
     this.hive.approach(actor.x,camera);
     if(!this.hive.onScreen(actor.x,camera))continue;
    }
+   const spine=this.spines.get(actor.kind);
+   if(spine){
+    spine.approach(actor.x,camera);
+    if(!spine.onScreen(actor.x,camera))continue;
+   }
    const telegraph=actor.state==='telegraph',attack=actor.state==='attack',hurt=actor.invuln>0;
    const x=actor.x-camera,y=actor.y;
-   const boss=actor.kind==='picnic'||actor.kind==='hive';
+   const boss=!!ENEMIES[actor.kind]?.boss;
+   const crown=spine?.crown()??(actor.kind==='picnic'||actor.kind==='hive'?134:actor.h);
    c.save();c.translate(x,y+2);
    c.fillStyle='#1a1410aa';c.beginPath();c.ellipse(0,4,boss?22:16,5,0,0,Math.PI*2);c.fill();
    if(telegraph){
@@ -310,7 +322,7 @@ export class EnemyArt {
     c.strokeStyle=`rgba(255,50,40,${pulse})`;c.lineWidth=3;
     c.beginPath();c.arc(0,-actor.h*.45,boss?46:30,0,Math.PI*2);c.stroke();
     c.fillStyle=`rgba(255,40,32,${pulse})`;c.font='bold 22px sans-serif';c.textAlign='center';
-    c.fillText('!',0,-actor.h-28);
+    c.fillText('!',0,-crown-28);
    }
    const striking=telegraph||attack||(actor.state==='recover'&&actor.skill<0);
    const look=striking||Math.abs(actor.vx)<=8?(actor.facing||1):(actor.vx>0?1:-1);
@@ -334,6 +346,16 @@ export class EnemyArt {
      c.scale(look,1);
      blit(c,sheet,this.picnicClock(actor,time),this.picnicRate(actor),dw,dh);
     }
+   }else if(spine){
+    if(hurt)c.filter='sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.1)';
+    if(!spine.draw(c,actor,time,look)&&actor.kind==='pig'){
+     const sheet=telegraph||attack?this.sheets.pigAttack:this.sheets.pigRun;
+     const cellW=sheet.img.width/sheet.frames,srcH=Math.max(1,sheet.img.height-(sheet.pad??0));
+     const aspect=cellW/srcH;
+     const dh=36,dw=Math.max(50,Math.min(76,dh*aspect));
+     c.scale(look,1);
+     blit(c,sheet,time,16,dw,dh);
+    }
    }else if(actor.kind==='pig'){
     const sheet=telegraph||attack?this.sheets.pigAttack:this.sheets.pigRun;
     const cellW=sheet.img.width/sheet.frames,srcH=Math.max(1,sheet.img.height-(sheet.pad??0));
@@ -350,7 +372,7 @@ export class EnemyArt {
     c.drawImage(img,-img.width/2,-img.height+6,img.width,img.height);
    }
    c.restore();c.filter='none';
-   bar(c,x,y-(boss?148:actor.h+18),actor.hp/Math.max(1,actor.maxHp),boss?92:52);
+   bar(c,x,y-crown-18,actor.hp/Math.max(1,actor.maxHp),boss?92:52);
   }
  }
  drawStakes(c:CanvasRenderingContext2D,stakes:StakeSpot[],camera:number){
