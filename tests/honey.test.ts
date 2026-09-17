@@ -53,6 +53,14 @@ describe('honey cavern',()=>{
   for(let i=0;i<36;i++)pool.step(1/120,sim);
   expect(Math.abs(sim.center().vx)).toBeLessThan(70);
  });
+ it('covers every honey pool with crushable wax plates and keeps crystals off the honey',()=>{
+  const level=new HoneyLevel();
+  for(const pool of level.pools){
+   const plates=level.wax.filter(w=>w.rect.x+w.rect.w>pool.bounds.x+16&&w.rect.x<pool.bounds.x+pool.bounds.w-16);
+   expect(plates.length).toBeGreaterThanOrEqual(2);
+  }
+  expect(level.base.some(s=>s.kind==='hex-pad')).toBe(false);
+ });
  it('has no shallow puddle at the amber vestibule sign',()=>{
   const level=new HoneyLevel();
   expect(level.pools.some(p=>p.bounds.x<600)).toBe(false);

@@ -43,8 +43,10 @@ export class TideLevel extends Level {
  inFall(x:number,y:number){
   return this.falls.some(f=>{const c=fallCore(f);return x>c.x&&x<c.x+c.w&&y>c.y&&y<c.y+c.h;});
  }
- override update(sim:SlimeSimulation,dt:number){
+ override update(sim:SlimeSimulation,dt:number,interact=false){
   const c=sim.center();
+  this.ecology.update(dt,sim,interact);
+  this.applyEcoPlatforms(sim);
   sim.water=this.bodyAt(c.x,c.y);
   for(const pool of this.pools)pool.step(dt,sim.particles);
   this.fallHit=false;
@@ -60,6 +62,7 @@ export class TideLevel extends Level {
   if(sim.particles.some(p=>!Number.isFinite(p.x)||p.y>this.fallY)){this.fell=true;this.respawn(sim);}
  }
  override respawn(sim:SlimeSimulation){
+  this.ecology.rewind();
   this.pools=this.waters.map(w=>new WaterSimulation(w));
   this.curtains=this.falls.map(f=>new WaterfallSim(f));
   this.solids=[...this.base];

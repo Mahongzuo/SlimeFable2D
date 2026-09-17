@@ -30,7 +30,7 @@ export type OutlinerRow={folder:OutlinerFolder;kind:string;index:number;label:st
 export function folderOf(kind:string):OutlinerFolder|undefined{
  if(kind==='base'||kind==='water'||kind==='gate'||kind==='exit'||kind==='win')return 'collision';
  if(kind==='dress'||kind==='sign')return 'scenery';
- if(kind==='dew'||kind==='souvenir'||kind==='plate'||kind==='stake'||kind==='checkpoint'||kind==='portal')return 'placed';
+ if(kind==='dew'||kind==='souvenir'||kind==='plate'||kind==='stake'||kind==='checkpoint'||kind==='portal'||kind==='eco'||kind==='fauna')return 'placed';
  if(kind==='enemy')return 'enemy';
  if(kind==='hint'||kind==='area')return 'zone';
 }
@@ -38,6 +38,7 @@ export function folderOf(kind:string):OutlinerFolder|undefined{
 /** Which folder a palette entry lands in once placed, so mode filtering matches the outliner. */
 export function folderOfKit(kit:KitEntry):OutlinerFolder{
  if(kit.play==='solid'||kit.play==='water')return 'collision';
+ if(kit.category==='critter')return 'placed';
  if(kit.play==='pickup')return 'placed';
  if(kit.play==='actor')return 'enemy';
  if(kit.interactKind==='hint'||kit.interactKind==='area')return 'zone';
@@ -68,6 +69,8 @@ export function rowLabel(layout:LevelLayout,sel:Sel):string{
  }
  if(sel.kind==='sign')return `${layout.signs?.[sel.index]?.text||'路牌'} #${sel.index}`;
  if(sel.kind==='dew')return `露水 #${sel.index}`;
+ if(sel.kind==='eco')return `${layout.ecology?.interactables?.[sel.index]?.kind??'生态'} #${sel.index}`;
+ if(sel.kind==='fauna')return `${layout.ecology?.fauna?.[sel.index]?.kind??'小动物'} #${sel.index}`;
  if(sel.kind==='souvenir')return `${layout.souvenirs[sel.index]?.name??'纪念品'} #${sel.index}`;
  if(sel.kind==='plate')return `踏板 #${sel.index}`;
  if(sel.kind==='stake')return `木桩 #${sel.index}`;
@@ -103,6 +106,8 @@ export function listOutliner(layout:LevelLayout):Record<OutlinerFolder,OutlinerR
  (layout.dressing??[]).forEach((_,i)=>add('dress',i));
  (layout.signs??[]).forEach((_,i)=>add('sign',i));
  layout.dew.forEach((_,i)=>add('dew',i));
+ (layout.ecology?.interactables??[]).forEach((_,i)=>add('eco',i));
+ (layout.ecology?.fauna??[]).forEach((_,i)=>add('fauna',i));
  layout.souvenirs.forEach((_,i)=>add('souvenir',i));
  layout.plates.forEach((p,i)=>{if(p.x<layout.width)add('plate',i);});
  layout.stakes.forEach((_,i)=>add('stake',i));

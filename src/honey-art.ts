@@ -3,7 +3,7 @@ import type {HoneyLevel} from './honey-level';
 import type {Rect,SlimeSimulation} from './physics';
 import {WAX_REFORM,type WaxPlatform} from './wax';
 import {asset} from './asset';
-import {drawPortals} from './kit/view';
+import {drawPortals,drawEcology} from './kit/view';
 type C=CanvasRenderingContext2D;
 type Img=HTMLImageElement|HTMLCanvasElement;
 const Y0=280;
@@ -66,21 +66,28 @@ export class HoneyArt {
  private add(kind:Prop['kind'],x:number,y:number,s:number,hang=0,flip=1){
   this.props.push({kind,x,y,s,flip,phase:x*.02+y*.01,hang,sway:0,bounce:0,vSway:0,vBounce:0});
  }
+ private overPool(x:number){
+  return this.level.pools.some(p=>x>p.bounds.x-8&&x<p.bounds.x+p.bounds.w+8);
+ }
+ private ground(kind:Prop['kind'],x:number,y:number,s:number){
+  if(this.overPool(x))return;
+  this.add(kind,x,y,s);
+ }
  private scatterProps(){
   const r=rng(441);
   this.add('lantern',210,118,.95,70);this.add('comb',390,86,1.05,0);this.add('drape',560,8,1.1,0);
-  this.add('crystal',190,600,.95);this.add('mound',340,600,1.1);this.add('puff',470,600,1);
+  this.ground('crystal',190,600,.95);this.ground('mound',340,600,1.1);this.ground('puff',470,600,1);
   this.add('lantern',820,110,.85,62);this.add('drape',980,6,1,0);this.add('comb',1180,78,.95,0);
-  this.add('crystal',1288,600,.8);this.add('mound',1400,600,1.15);this.add('puff',1488,600,.9);
+  this.ground('crystal',1288,600,.8);this.ground('mound',1400,600,1.15);this.ground('puff',1488,600,.9);
   this.add('lantern',1720,102,.88,68);this.add('drape',1980,4,1.15,0);this.add('comb',2210,70,1,0);
-  this.add('crystal',2510,600,.85);this.add('puff',2555,600,.95);
+  this.ground('crystal',2510,600,.85);this.ground('puff',2555,600,.95);
   this.add('lantern',2688,64,.8,54);this.add('drape',2860,0,1.1,0);this.add('comb',3080,48,.9,0);
-  this.add('crystal',3390,600,.95);this.add('mound',3490,600,1);this.add('lantern',3520,88,.85,64);
+  this.ground('crystal',3390,600,.95);this.ground('mound',3490,600,1);this.add('lantern',3520,88,.85,64);
   this.add('drape',3760,6,1,0);this.add('comb',4010,62,1.05,0);this.add('lantern',4180,96,.82,70);
-  this.add('crystal',4288,600,1.05);this.add('mound',4480,588,.9);this.add('puff',4688,588,1);
+  this.ground('crystal',4288,600,1.05);this.ground('mound',4480,588,.9);this.ground('puff',4688,588,1);
   this.add('drape',4560,10,1.05,0);this.add('comb',4780,58,.95,0);this.add('lantern',4900,108,.85,58);
-  this.add('crystal',2144,575,.7);this.add('puff',2168,575,.75);
-  this.add('crystal',870,600,.7);this.add('mound',1088,612,.8);this.add('puff',2340,690,.7);
+  this.ground('crystal',2144,575,.7);this.ground('puff',2168,575,.75);
+  this.ground('crystal',870,600,.7);this.ground('mound',1088,612,.8);this.ground('puff',2340,690,.7);
   this.add('lantern',2420,90,.8,60);this.add('comb',3320,40,.88,0);this.add('drape',3180,0,1,0);
   for(let i=0;i<14;i++){
    const x=140+r()*4780,y=48+r()*80;
@@ -172,18 +179,16 @@ export class HoneyArt {
   }
   for(let i=0;i<9;i++){
    const x=180+i*390,y=8+r()*24;
-   if(this.imgs.hang){c.save();c.globalAlpha=.92;c.drawImage(this.imgs.hang,x-56,y,112+r()*24,150+r()*30);c.restore();}
-   else {c.fillStyle='#c48a38';c.beginPath();c.ellipse(x,y+58,38,46,0,0,Math.PI*2);c.fill();}
+   c.fillStyle='#5a321ccc';c.beginPath();c.ellipse(x,y+58,34+r()*8,42+r()*8,0,0,Math.PI*2);c.fill();
   }
   for(let i=0;i<8;i++){
    const x=260+i*420,y=70+r()*36;
-   if(this.imgs.lantern)c.drawImage(this.imgs.lantern,x-22,y,44,66);
-   else {c.strokeStyle='#e0b45a';c.lineWidth=2;c.beginPath();c.moveTo(x,y-40);c.lineTo(x,y+18);c.stroke();c.fillStyle='#ffe08acc';c.beginPath();c.arc(x,y+28,11,0,Math.PI*2);c.fill();}
+   c.strokeStyle='#c48a3866';c.lineWidth=2;c.beginPath();c.moveTo(x,y-40);c.lineTo(x,y+18);c.stroke();
+   c.fillStyle='#d8862033';c.beginPath();c.arc(x,y+28,11,0,Math.PI*2);c.fill();
   }
   for(let i=0;i<7;i++){
    const x=340+i*480;
-   if(this.imgs.drape)c.drawImage(this.imgs.drape,x-28,0,56,150);
-   if(this.imgs.crystal)c.drawImage(this.imgs.crystal,x+90,520+r()*40,48,62);
+   c.fillStyle='#3b211866';c.beginPath();c.moveTo(x-18,0);c.quadraticCurveTo(x,90,x+16,0);c.fill();
   }
   const haze=c.createLinearGradient(0,520,0,1000);haze.addColorStop(0,'#d8862000');haze.addColorStop(1,'#8a431655');c.fillStyle=haze;c.fillRect(0,520,3600,480);
  }
@@ -378,6 +383,7 @@ export class HoneyArt {
    c.save();c.translate(-camera,0);this.waxStone(c,w.x,w.y,w.w,w.h,w.x);c.restore();
   }
   this.drawCritters(c,camera,time);
+  drawEcology(c,this.level.ecology,camera,time);
   drawPortals(c,this.level.portals,camera,time);
   for(const d of this.level.dew){
    if(d.got)continue;const x=d.x-camera,y=d.y+Math.sin(time*2+d.x)*4;

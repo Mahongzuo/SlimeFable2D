@@ -1,5 +1,14 @@
 import type {KitEntry} from './defs';
 
+const FOREST_ECO:KitEntry[]=[
+ {id:'forest-dew-leaf',chapter:'forest',category:'interact',name:'露水叶',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'苔'},
+ {id:'forest-bounce-mushroom',chapter:'forest',category:'interact',name:'弹跳蘑菇',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'苔'},
+ {id:'forest-hollow-fruit',chapter:'forest',category:'interact',name:'空心果',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'苔'},
+ {id:'forest-spore-flower',chapter:'forest',category:'interact',name:'孢子花',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'苔'},
+ {id:'forest-root-door',chapter:'forest',category:'interact',name:'根须门',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'苔'},
+ {id:'forest-firefly-lantern',chapter:'forest',category:'interact',name:'萤火灯笼',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'苔'},
+];
+
 export const FOREST_KIT:KitEntry[]=[
  {id:'forest-earth',chapter:'forest',category:'terrain',name:'土地',place:'rect',play:'solid',defaults:{w:400,h:350},draw:'canvas',solidKind:'earth',mark:'苔'},
  {id:'forest-stone',chapter:'forest',category:'terrain',name:'石台',place:'rect',play:'solid',defaults:{w:160,h:80},draw:'canvas',solidKind:'stone',mark:'苔'},
@@ -29,7 +38,9 @@ export const FOREST_KIT:KitEntry[]=[
  {id:'enemy-boar',chapter:'forest',category:'enemy',name:'杂兵猪',place:'point',play:'actor',actorKind:'boar',defaults:{},draw:'canvas',mark:'苔'},
  {id:'critter-moth',chapter:'forest',category:'critter',name:'蛾',place:'point',play:'dress',defaults:{s:1},draw:'canvas',mark:'苔'},
  {id:'critter-snail',chapter:'forest',category:'critter',name:'蜗牛',place:'point',play:'dress',defaults:{s:1},draw:'canvas',mark:'苔'},
+ {id:'critter-beetle',chapter:'forest',category:'critter',name:'叶甲',place:'point',play:'dress',defaults:{s:1},draw:'canvas',mark:'苔'},
  {id:'sign-post',chapter:'forest',category:'sign',name:'路牌',place:'point',play:'sign',defaults:{},draw:'canvas',mark:'苔'},
  {id:'sign-hint',chapter:'forest',category:'sign',name:'提示带',place:'rect',play:'sign',interactKind:'hint',defaults:{w:400,h:200},draw:'canvas',mark:'苔'},
  {id:'sign-area',chapter:'forest',category:'sign',name:'区位名',place:'rect',play:'sign',interactKind:'area',defaults:{w:400,h:400},draw:'canvas',mark:'苔'},
+ ...FOREST_ECO,
 ];

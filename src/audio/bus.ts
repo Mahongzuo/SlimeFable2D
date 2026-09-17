@@ -54,7 +54,6 @@ export class AudioBus {
  private swim?:{src:AudioBufferSourceNode;gain:GainNode};
  private swimTimer?:number;
  private bgmEl?:HTMLAudioElement;
- private readonly bgmUrl=asset('assets/audio/bgm/slime.ogg');
 
  async setEnabled(on:boolean){
   if(on){
@@ -153,7 +152,7 @@ export class AudioBus {
 
  private playFileBgm(vol:number,track:'explore'|'boss'='explore'){
   if(!this.ctx||!this.music)return;
-  const url=track==='boss'?asset('assets/audio/bgm/soon-boss.mp3'):asset('assets/audio/bgm/explore.ogg');
+  const url=track==='boss'?asset('assets/audio/bgm/soon-boss.mp3'):asset('assets/audio/bgm/slime.ogg');
   if(!this.bgmEl){
    const el=new Audio(url);
    el.loop=true;el.preload='auto';el.crossOrigin='anonymous';
@@ -169,7 +168,7 @@ export class AudioBus {
   }else{
    if(this.bgmGain)this.bgmGain.gain.value=vol;
    else this.bgmEl.volume=Math.max(0,Math.min(1,this.musicVol*vol));
-   if(!this.bgmEl.src.includes(track==='boss'?'soon-boss.mp3':'explore.ogg'))this.bgmEl.src=url;
+   if(!this.bgmEl.src.includes(track==='boss'?'soon-boss.mp3':'slime.ogg'))this.bgmEl.src=url;
   }
   this.bgmEl.currentTime=this.bgmEl.currentTime||0;
   void this.bgmEl.play().catch(()=>{/* wait for a gesture */});

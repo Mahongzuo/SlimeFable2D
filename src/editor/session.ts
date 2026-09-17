@@ -137,6 +137,8 @@ export function deleteSel(session:EditorSession){
  const sel=session.sel;
  if(sel.kind==='base')layout.base.splice(sel.index,1);
  if(sel.kind==='dew')layout.dew.splice(sel.index,1);
+ if(sel.kind==='eco')layout.ecology?.interactables?.splice(sel.index,1);
+ if(sel.kind==='fauna')layout.ecology?.fauna?.splice(sel.index,1);
  if(sel.kind==='enemy')layout.enemies.splice(sel.index,1);
  if(sel.kind==='souvenir')layout.souvenirs.splice(sel.index,1);
  if(sel.kind==='stake')layout.stakes.splice(sel.index,1);

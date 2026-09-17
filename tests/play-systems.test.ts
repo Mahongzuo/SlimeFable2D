@@ -15,11 +15,11 @@ import {readFileSync} from 'node:fs';
 import {CATALOG,CAMY_WIND} from '../src/catalog';
 import {emptyActions} from '../src/input';
 import {CombatSystem} from '../src/combat/combat';
-import {ENEMIES,hurtActor,livingGates,makeActor,stepMachine} from '../src/ai/machine';
+import {ENEMIES,chooseSkill,hurtActor,livingGates,makeActor,stepMachine} from '../src/ai/machine';
 import {ABILITIES} from '../src/gas/catalog';
 import {applyEffect} from '../src/gas/effects';
 import {CueBus} from '../src/gas/cues';
-import {resolveActor} from '../src/actor/actor';
+import {dashHitsPlayer,resolveActor,separateFromPlayer} from '../src/actor/actor';
 import {Inventory} from '../src/items/inventory';
 import {bakeForest,bakeVariants} from '../src/wfc/bake';
 import {reachable} from '../src/wfc/reach';
@@ -286,7 +286,7 @@ describe('notices and mood',()=>{
 describe('enemies',()=>{
  it('walks the telegraph-attack machine and can die',()=>{
   const def=ENEMIES.cap;
-  const actor={id:'t',kind:'cap',x:0,y:0,w:def.w,h:def.h,vx:0,vy:0,hp:1,maxHp:1,faction:'enemy' as const,facing:1,invuln:0,dead:false,state:'alert',timer:0,cooldown:0,patrol:40,homeX:0,homeY:0,skill:0,meleeCd:0,cycle:0,dodgeCd:0,hopCd:0};
+  const actor={id:'t',kind:'cap',x:0,y:0,w:def.w,h:def.h,vx:0,vy:0,hp:1,maxHp:1,faction:'enemy' as const,facing:1,invuln:0,dead:false,state:'alert',timer:0,cooldown:0,patrol:40,homeX:0,homeY:0,skill:0,meleeCd:0,cycle:0,dodgeCd:0,hopCd:0,bumpLock:false};
   stepMachine(actor,def,{playerX:10,playerY:0,dt:.05});
   expect(['telegraph','alert','patrol']).toContain(actor.state);
   hurtActor(actor,1);
@@ -810,6 +810,10 @@ describe('mirror night',()=>{
   expect(sent).toBe(true);
   expect(s.center().x).toBeGreaterThan(east.x-80);
   expect(s.center().y).toBeLessThan(east.y+40);
+  expect(level.portalCool).toBeGreaterThanOrEqual(9);
+  let early=false;
+  for(let i=0;i<8;i++){level.update(s,1/60);if(level.ported)early=true;}
+  expect(early).toBe(false);
   level.portalCool=0;
   let back=false;
   for(let i=0;i<8;i++){level.update(s,1/60);if(level.ported)back=true;}
@@ -913,6 +917,59 @@ describe('gas',()=>{
   expect(bar.hp).toBe(picnic!.hp);
   picnic!.dead=true;picnic!.state='dead';
   expect(bossBar(a).visible).toBe(false);
+ });
+});
+
+describe('dash contact',()=>{
+ it('lets a wolf pounce land at 85px instead of howling',()=>{
+  const wolf=makeActor('wolf',0,600,'wolf-pounce',40);
+  expect(chooseSkill(wolf,ENEMIES.wolf,85)).toBe(0);
+  expect(ENEMIES.wolf.skills[chooseSkill(wolf,ENEMIES.wolf,20)].kind).toBe('pounce');
+  expect(ENEMIES.wolf.skills[chooseSkill(wolf,ENEMIES.wolf,180)].kind).toBe('howl');
+  const combat=new CombatSystem();
+  let hit=false;
+  ABILITIES['enemy.pounce'].activate({
+   self:wolf.asc!,combat,x:0,y:600,facing:1,h:wolf.h,targetX:85,targetY:580,range:90,name:'霜脊狼',
+   hitPlayer:()=>{hit=true;},
+  });
+  expect(hit).toBe(true);
+  expect(dashHitsPlayer(wolf,85,580,90)).toBe(true);
+ });
+ it('keeps a charge projectile alive over the forest floor',()=>{
+  const combat=new CombatSystem();
+  combat.charge(100,600,1,42);
+  expect(combat.charges[0].y).toBeLessThan(590);
+  combat.step(1/60,[{x:0,y:600,w:400,h:200}]);
+  expect(combat.charges.some(c=>c.alive)).toBe(true);
+ });
+ it('nudges an overlapping wolf once then lets the slime pass',()=>{
+  const wolf=makeActor('wolf',100,600,'wolf-overlap',40);
+  expect(separateFromPlayer(wolf,100,580,28)).toBe(true);
+  expect(Math.abs(wolf.x-100)).toBeCloseTo(3,5);
+  const x=wolf.x;
+  expect(separateFromPlayer(wolf,100,580,28)).toBe(false);
+  expect(wolf.x).toBe(x);
+ });
+ it('sweeps a boar charge the same way as a wolf',()=>{
+  const boar=makeActor('boar',0,600,'boar-hit',40);
+  expect(ENEMIES.boar.skills[chooseSkill(boar,ENEMIES.boar,120)].kind).toBe('charge');
+  expect(dashHitsPlayer(boar,120,580,160)).toBe(true);
+  const combat=new CombatSystem();
+  let hit=false;
+  ABILITIES['enemy.charge'].activate({
+   self:boar.asc!,combat,x:0,y:600,facing:1,h:boar.h,targetX:120,targetY:580,range:160,name:'杂兵猪',
+   hitPlayer:()=>{hit=true;},
+  });
+  expect(hit).toBe(true);
+  combat.step(1/60,[{x:0,y:600,w:800,h:200}]);
+  expect(combat.charges.some(c=>c.alive)).toBe(true);
+ });
+ it('holds a pounce attack long enough to close an 85px gap',()=>{
+  const wolf=makeActor('wolf',0,600,'wolf-dash',40);
+  wolf.state='telegraph';wolf.skill=0;wolf.timer=0;wolf.facing=1;
+  stepMachine(wolf,ENEMIES.wolf,{playerX:85,playerY:580,dt:.02});
+  expect(wolf.state).toBe('attack');
+  expect(wolf.timer).toBeGreaterThanOrEqual(.32);
  });
 });
 

@@ -24,6 +24,10 @@ export function hitStack(layout:LevelLayout,x:number,y:number,lock:OutlinerFolde
   if(inside(x,y,dressBox(dress[i])))take('dress',i);
  }
  for(let i=layout.dew.length-1;i>=0;i--)if(near(x,y,layout.dew[i].x,layout.dew[i].y))take('dew',i);
+ const ecos=layout.ecology?.interactables??[];
+ for(let i=ecos.length-1;i>=0;i--)if(near(x,y,ecos[i].x,ecos[i].y,28))take('eco',i);
+ const fauna=layout.ecology?.fauna??[];
+ for(let i=fauna.length-1;i>=0;i--)if(near(x,y,fauna[i].x,fauna[i].y,24))take('fauna',i);
  for(let i=layout.souvenirs.length-1;i>=0;i--)if(near(x,y,layout.souvenirs[i].x,layout.souvenirs[i].y))take('souvenir',i);
  for(let i=layout.enemies.length-1;i>=0;i--)if(near(x,y,layout.enemies[i].x,layout.enemies[i].y,36))take('enemy',i);
  for(let i=layout.stakes.length-1;i>=0;i--)if(inside(x,y,layout.stakes[i]))take('stake',i);
@@ -122,6 +126,16 @@ export function applyKit(layout:LevelLayout,kit:KitEntry,at:{x:number;y:number;w
   layout.enemies.push({id:nid(layout,kit.actorKind),kind:kit.actorKind,x:at.x,y:at.y,patrol:50});
   return;
  }
+ if(kit.category==='critter'){
+  const eco=layout.ecology??(layout.ecology={interactables:[],fauna:[],events:[],challenges:[],biomes:[]});
+  (eco.fauna??(eco.fauna=[])).push({id:nid(layout,kit.id),kind:kit.id.replace(/^critter-/,''),x:at.x,y:at.y,span:40,habitat:kit.chapter});
+  return;
+ }
+ if(kit.play==='interact'&&!kit.interactKind){
+  const eco=layout.ecology??(layout.ecology={interactables:[],fauna:[],events:[],challenges:[],biomes:[]});
+  (eco.interactables??(eco.interactables=[])).push({id:nid(layout,kit.id),kind:kit.id,x:at.x,y:at.y});
+  return;
+ }
  if(kit.play==='dress'){
   (layout.dressing??(layout.dressing=[])).push({id:nid(layout,'d'),kit:kit.id,x:at.x,y:at.y,w,h,s:kit.defaults.s,flip:1});
   return;
@@ -149,6 +163,8 @@ export function selRect(layout:LevelLayout,sel:Sel):{x:number;y:number;w:number;
  if(sel.kind==='stake')return layout.stakes[sel.index];
  if(sel.kind==='exit')return layout.exit;
  if(sel.kind==='dew'){const d=layout.dew[sel.index];return d?{x:d.x-12,y:d.y-12,w:24,h:24}:undefined;}
+ if(sel.kind==='eco'){const o=layout.ecology?.interactables?.[sel.index];return o?{x:o.x-16,y:o.y-28,w:32,h:32}:undefined;}
+ if(sel.kind==='fauna'){const o=layout.ecology?.fauna?.[sel.index];return o?{x:o.x-14,y:o.y-24,w:28,h:28}:undefined;}
  if(sel.kind==='souvenir'){const s=layout.souvenirs[sel.index];return s?{x:s.x-12,y:s.y-12,w:24,h:24}:undefined;}
  if(sel.kind==='enemy'){const e=layout.enemies[sel.index];return e?{x:e.x-20,y:e.y-40,w:40,h:48}:undefined;}
  if(sel.kind==='plate'){const p=layout.plates[sel.index];return p?{x:p.x-20,y:p.y-8,w:40,h:12}:undefined;}
@@ -180,8 +196,8 @@ export function applySelNum(layout:LevelLayout,sel:Sel,field:'x'|'y'|'w'|'h',val
  }
  if(sel.kind==='stake'){layout.stakes[sel.index][field]=value;return;}
  if(sel.kind==='exit'&&layout.exit){layout.exit[field]=value;return;}
- if((sel.kind==='dew'||sel.kind==='souvenir'||sel.kind==='enemy'||sel.kind==='plate'||sel.kind==='sign'||sel.kind==='portal')&&(field==='x'||field==='y')){
-  const obj=sel.kind==='dew'?layout.dew[sel.index]:sel.kind==='souvenir'?layout.souvenirs[sel.index]:sel.kind==='enemy'?layout.enemies[sel.index]:sel.kind==='plate'?layout.plates[sel.index]:sel.kind==='portal'?layout.portals?.[sel.index]:layout.signs?.[sel.index];
+ if((sel.kind==='dew'||sel.kind==='souvenir'||sel.kind==='enemy'||sel.kind==='plate'||sel.kind==='sign'||sel.kind==='portal'||sel.kind==='eco'||sel.kind==='fauna')&&(field==='x'||field==='y')){
+  const obj=sel.kind==='dew'?layout.dew[sel.index]:sel.kind==='souvenir'?layout.souvenirs[sel.index]:sel.kind==='enemy'?layout.enemies[sel.index]:sel.kind==='plate'?layout.plates[sel.index]:sel.kind==='portal'?layout.portals?.[sel.index]:sel.kind==='eco'?layout.ecology?.interactables?.[sel.index]:sel.kind==='fauna'?layout.ecology?.fauna?.[sel.index]:layout.signs?.[sel.index];
   if(obj)obj[field]=value;
   return;
  }
@@ -226,6 +242,8 @@ export function moveSel(layout:LevelLayout,sel:Sel,dx:number,dy:number){
  if(sel.kind==='stake')apply(layout.stakes[sel.index]);
  if(sel.kind==='exit'&&layout.exit)apply(layout.exit);
  if(sel.kind==='dew')apply(layout.dew[sel.index]);
+ if(sel.kind==='eco')apply(layout.ecology!.interactables![sel.index]);
+ if(sel.kind==='fauna')apply(layout.ecology!.fauna![sel.index]);
  if(sel.kind==='souvenir')apply(layout.souvenirs[sel.index]);
  if(sel.kind==='enemy')apply(layout.enemies[sel.index]);
  if(sel.kind==='plate')apply(layout.plates[sel.index]);

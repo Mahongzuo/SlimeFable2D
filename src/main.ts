@@ -27,6 +27,7 @@ import {itemOf} from './items/defs';
 import {drawMinimap} from './minimap';
 import {AudioBus} from './audio/bus';
 import {asset} from './asset';
+import {encodeCloud,loadJournal,mergeCloud,recordDiscovery,recordRun,recordSouvenir,saveJournal,type Journal} from './journal';
 import './style.css';
 
 document.documentElement.style.setProperty('--title-art',`url("${asset('assets/ui/title.png')}")`);
@@ -47,9 +48,10 @@ document.querySelector('#app')!.innerHTML=`
     <h1>史莱姆寓言</h1>
     <p>一团史莱姆忽然落到这片发光的林子里。<br>从露水草甸出发，去森林尽头看看。</p>
     <nav class="title-menu">
-     <button id="start" class="primary">开始冒险 <span>→</span></button>
+     <button id="start" class="primary" aria-label="开始小小冒险">开始冒险 <span>→</span></button>
      <button id="open-levels" class="ghost">选择关卡</button>
      <button id="open-settings" class="ghost">操作设置</button>
+     <button id="open-journal" class="ghost">旅行记录</button>
      <button id="open-editor" class="ghost">地图编辑器</button>
     </nav>
     <label class="title-name">给你的史莱姆取名<input id="slime-name" type="text" maxlength="6" spellcheck="false" autocomplete="off" aria-label="给你的史莱姆取个名字"/></label>
@@ -95,6 +97,15 @@ document.querySelector('#app')!.innerHTML=`
     <button id="settings-back" class="text-button">返回</button>
    </div>
   </section>
+  <section id="journal-ui" class="overlay hidden" aria-label="旅行记录">
+   <div class="overlay-card journal-card">
+    <div class="eyebrow"><span></span> JOURNAL</div>
+    <h2>旅行记录</h2>
+    <p id="journal-copy">走过的关、拾到的纪念、还没点亮的徽章，都会记在这里。</p>
+    <div id="journal-body" class="journal-body"></div>
+    <button id="journal-back" class="text-button">返回</button>
+   </div>
+  </section>
   <section id="editor-hub" class="overlay hidden" aria-label="地图编辑器"></section>
   <section id="editor-ui" class="editor-ui hidden" aria-label="编辑画布">
    <header class="editor-top">
@@ -131,7 +142,7 @@ document.querySelector('#app')!.innerHTML=`
    </footer>
   </section>
   <header class="hud play-only"><div class="identity"><span class="brand-icon">${drop}</span><div><div class="brand">史莱姆寓言 <span>SLIME FABLE</span></div><div class="chapter">第一章 <b>·</b> 苔光森林</div></div></div>
-   <div class="hud-right"><span id="vitals" class="vitals"><span id="hearts" class="hearts"></span><span id="ammo" class="ammo"></span></span><span class="dew-count"><span>◈</span> <b id="dew-count">0</b><em id="dew-total">/ 6</em></span><i></i><button type="button" id="pause" class="icon-button" aria-label="暂停游戏" title="暂停 / Esc">Ⅱ</button></div>
+   <div class="hud-right"><span id="vitals" class="vitals"><span id="hearts" class="hearts"></span><span id="ammo" class="ammo"></span></span><span class="score-readout"><b id="score-count">0</b><small>分</small></span><span class="time-readout"><b id="time-count">00:00</b><small>用时</small></span><span class="dew-count"><span>◈</span> <b id="dew-count">0</b><em id="dew-total">/ 6</em></span><i></i><button type="button" id="pause" class="icon-button" aria-label="暂停游戏" title="暂停 / Esc">Ⅱ</button></div>
   </header>
   <div id="boss-frame" class="boss-frame hidden play-only"><b id="boss-name"></b><span class="boss-bar"><i id="boss-fill"></i></span><b id="boss-name-b" class="hidden"></b><span id="boss-bar-b" class="boss-bar hidden"><i id="boss-fill-b"></i></span></div>
   <div id="toast-col" class="toast-col play-only">
@@ -151,6 +162,7 @@ document.querySelector('#app')!.innerHTML=`
    <span>${gp('rb','RB')} 切换</span>
    <span class="forest-only">${gp('lb','LT')} 斩</span>
    <span class="forest-only">${gp('rb','RT')} 弹</span>
+   <span>${gp('stick','L3')} 互动</span>
    <span>${gp('back','◀')} 检查点</span>
    <span>${gp('start','≡')} 菜单</span>
   </footer>
@@ -164,6 +176,7 @@ document.querySelector('#app')!.innerHTML=`
     <button type="button" class="forest-only" data-act="ranged">弹</button>
     <button type="button" class="forest-only" data-act="dodge">闪</button>
     <button type="button" class="forest-only" data-act="inventory">包</button>
+    <button type="button" data-act="interact">互</button>
    </div>
    <div class="touch-faces">
     <button type="button" class="touch-sub" data-act="squeeze">挤</button>
@@ -177,7 +190,7 @@ document.querySelector('#app')!.innerHTML=`
   <div class="progress-track play-only"><div id="progress"></div></div>
   <canvas id="minimap" class="minimap play-only" width="220" height="96" aria-label="小地图"></canvas>
   <nav id="body-picker" class="body-picker hidden play-only" aria-label="选择控制的史莱姆"><button data-body="0">1 号</button><button data-body="1">2 号</button></nav>
-  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-card"><span class="modal-mark">${drop}</span><div id="modal-eyebrow" class="eyebrow">TAKE A LITTLE BREATH</div><h2 id="modal-title">在苔藓上，歇一会儿。</h2><p id="modal-copy">森林会等你。准备好后，再出发。</p>
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-card"><span class="modal-mark">${drop}</span><div id="modal-eyebrow" class="eyebrow">TAKE A LITTLE BREATH</div><h2 id="modal-title">在苔藓上，歇一会儿。</h2><p id="modal-copy">森林会等你。准备好后，再出发。</p><div id="score-breakdown" class="score-breakdown hidden"></div><div id="score-badges" class="score-badges hidden"></div><div id="score-remain" class="score-remain hidden"></div><div id="score-journal" class="score-journal hidden"></div>
    <div id="modal-pause" class="modal-actions">
     <button id="resume" class="primary">继续冒险 <span>→</span></button>
     <button id="reset" class="text-button">回到最近的检查点</button>
@@ -188,6 +201,7 @@ document.querySelector('#app')!.innerHTML=`
    </div>
    <div id="modal-win" class="modal-actions hidden">
     <button id="stay-explore" class="primary">继续探索</button>
+    <button id="join-rank" class="text-button">参与排行</button>
     <button id="next-level" class="text-button">进入下一关 <span>→</span></button>
     <button id="win-title" class="text-button">返回主菜单</button>
    </div>
@@ -201,6 +215,8 @@ document.querySelector('#app')!.innerHTML=`
 
 const adventure=new Adventure();
 let progress:Progress=loadProgress();
+let journal:Journal=loadJournal();
+let handledRunId='';
 const input=new PlayerInput(progress.bindings,progress.schemePref);
 adventure.name=progress.name;
 let forest:ForestArt;
@@ -209,7 +225,7 @@ let gallery:TideArt|undefined;
 let windArt:WindArt|undefined;
 let mirrorArt:MirrorArt|undefined;
 const foes=new EnemyArt();
-let overlay:'none'|'levels'|'settings'|'editor-hub'|'editor'='none';
+let overlay:'none'|'levels'|'settings'|'journal'|'editor-hub'|'editor'='none';
 let overlayFrom:'title'|'pause'='title';
 let editor:EditorSession|undefined;
 let editorPreview:Level|undefined;
@@ -280,15 +296,17 @@ function entryOf(){
  return isCustomId(adventure.level.id)?customEntry(adventure.level.id):levelById(adventure.level.id)??CATALOG[0];
 }
 
-function showOverlay(next:'none'|'levels'|'settings'|'editor-hub'|'editor',from:'title'|'pause'=overlayFrom){
+function showOverlay(next:'none'|'levels'|'settings'|'journal'|'editor-hub'|'editor',from:'title'|'pause'=overlayFrom){
  overlay=next;overlayFrom=from;
  el('levels').classList.toggle('hidden',next!=='levels');
  el('settings').classList.toggle('hidden',next!=='settings');
+ el('journal-ui').classList.toggle('hidden',next!=='journal');
  el('editor-hub').classList.toggle('hidden',next!=='editor-hub');
  el('editor-ui').classList.toggle('hidden',next!=='editor');
  shell.classList.toggle('editing',next==='editor');
  if(next==='levels')renderLevels();
  if(next==='settings')renderSettings();
+ if(next==='journal')paintJournal();
  if(next==='editor-hub')paintHub();
  if(next==='editor')refreshEditorUi();
  menuFocus=0;syncFocus();
@@ -352,7 +370,7 @@ function begin(){
 function renderKeyboardBar(){
  const b=progress.bindings,k=(action:KeyAction,wide=false)=>`<kbd${wide?' class="wide"':''}>${keyLabel(b[action])}</kbd>`;
  const extra=adventure.level.features.combat?`<span>${k('melee')} 斩</span><span>${k('ranged')} 弹</span><span>${k('dodge')} 闪</span><span>${k('inventory')} 包</span>`:'';
- el('controls-keyboard').innerHTML=`<span>${k('left')}${k('right')} 移动</span><span>${k('jump',true)} 跳跃</span><span>${k('up')} 攀爬 ${k('down')} 挤压</span><span>${k('split')} 分裂</span><span>${k('switch')} 切换</span><span>${k('merge')} 合并</span>${extra}<span>${k('reset')} 回溯</span><button id="help" title="操作说明">?</button>`;
+ el('controls-keyboard').innerHTML=`<span>${k('left')}${k('right')} 移动</span><span>${k('jump',true)} 跳跃</span><span>${k('up')} 攀爬 ${k('down')} 挤压</span><span>${k('split')} 分裂</span><span>${k('switch')} 切换</span><span>${k('merge')} 合并</span>${extra}<span>${k('interact')} 互动</span><span>${k('reset')} 回溯</span><button id="help" title="操作说明">?</button>`;
  el('help').onclick=()=>showOverlay('settings',adventure.started?'pause':'title');
 }
 
@@ -431,6 +449,19 @@ function renderSettings(){
    renderSettings();
   };
  });
+}
+
+function paintJournal(){
+ const badgeName:Record<string,string>={clear:'通关',collector:'全收集',ecologist:'生态学家',challenger:'挑战者'};
+ const souvenirs=journal.souvenirs.map(id=>itemOf(id)?.name??id);
+ const badges=Object.entries(journal.badges).flatMap(([level,list])=>list.map(b=>`${level} · ${badgeName[b]??b}`));
+ const remain=CATALOG.filter(e=>e.status==='ready'&&!journal.cleared.includes(e.id)).map(e=>e.name);
+ el('journal-copy').textContent=`发现 ${journal.discovered.length} · 纪念 ${journal.souvenirs.length} · 通关 ${journal.cleared.length}`;
+ el('journal-body').innerHTML=`
+  <section><h3>纪念图鉴</h3><p>${souvenirs.length?souvenirs.map(n=>`<i>${n}</i>`).join(''):'还没有带回纪念物。'}</p></section>
+  <section><h3>徽章</h3><p>${badges.length?badges.map(n=>`<i>${n}</i>`).join(''):'通关后会在这里展开。'}</p></section>
+  <section><h3>未完成</h3><p>${remain.length?remain.join(' · '):'五关都走过了。'}</p></section>
+ `;
 }
 
 function syncScheme(){
@@ -658,7 +689,7 @@ function editorWorld(event:PointerEvent){
 }
 
 function menuButtons(){
- const root=overlay==='levels'?el('levels'):overlay==='settings'?el('settings'):overlay==='editor-hub'?el('editor-hub'):overlay==='editor'?el('editor-ui'):!el('modal').classList.contains('hidden')?el('modal'):el('title');
+ const root=overlay==='levels'?el('levels'):overlay==='settings'?el('settings'):overlay==='journal'?el('journal-ui'):overlay==='editor-hub'?el('editor-hub'):overlay==='editor'?el('editor-ui'):!el('modal').classList.contains('hidden')?el('modal'):el('title');
  return Array.from(root.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')).filter(button=>!button.classList.contains('title-sound'));
 }
 function syncFocus(){
@@ -712,6 +743,8 @@ function bindTouch(){
 el('start').onclick=begin;
 el('open-levels').onclick=()=>showOverlay('levels','title');
 el('open-settings').onclick=()=>showOverlay('settings','title');
+el('open-journal').onclick=()=>showOverlay('journal','title');
+el('journal-back').onclick=()=>showOverlay('none');
 el('open-editor').onclick=()=>showOverlay('editor-hub','title');
 el('levels-back').onclick=()=>showOverlay('none');
 el('editor-undo').onclick=()=>{if(editor){undo(editor);refreshEditorUi();}};
@@ -741,6 +774,18 @@ el('pause-levels').onclick=()=>showOverlay('levels','pause');
 el('pause-settings').onclick=()=>showOverlay('settings','pause');
 el('quit-title').onclick=goTitle;
 el('stay-explore').onclick=()=>adventure.stay();
+el('join-rank').onclick=()=>{
+ journal={...journal,toyConsent:true};
+ saveJournal(journal);
+ const result=adventure.lastRun??adventure.run.result;
+ if(!result)return;
+ void adventure.toy.submit(result).then(answer=>{
+  el('score-breakdown').textContent=`${el('score-breakdown').textContent?.replace(/ · 排行.+$/,'')??''} · 排行已提交 ${answer.score}`;
+ }).catch(()=>{
+  const box=el('score-breakdown');
+  if(!box.textContent?.includes('离线'))box.textContent+=` · 离线成绩已保存`;
+ });
+};
 el('next-level').onclick=()=>{
  const next=nextPlayable(adventure.level.id,progress);
  if(next)enterLevel(next.id);
@@ -857,7 +902,13 @@ document.addEventListener('visibilitychange',()=>{
   input.clear();
   if(adventure.started&&!adventure.frozen()&&!adventure.dead)adventure.paused=true;
   if(progress.soundOn)void bus.setEnabled(false);
+  saveJournal(journal);
+  void adventure.toy.saveCloud(encodeCloud(journal));
  }else if(progress.soundOn)void bus.setEnabled(true);
+});
+window.addEventListener('pagehide',()=>{
+ saveJournal(journal);
+ void adventure.toy.saveCloud(encodeCloud(journal));
 });
 input.onScheme=syncScheme;
 renderKeyboardBar();
@@ -867,12 +918,17 @@ syncScheme();
 bindTouch();
 hydrateKitImages();
 restoreDraft();
+void adventure.toy.loadCloud().then(values=>{
+ if(Object.keys(values).length===0)return;
+ journal=mergeCloud(journal,values);
+ saveJournal(journal);
+});
 
 let lastHud=0;
 const timings={physics:0,art:0,surface:0,upload:0};
 function hud(time:number,fps:number){
  if(time-lastHud<80)return;lastHud=time;
- const a=adventure,c=a.sim.center(),region=a.level.region(c.x,c.y),honey=a.level.id==='honey',tide=a.level.id==='tide',entry=entryOf();
+ const a=adventure,c=a.sim.center(),region=a.started?a.level.region(c.x,c.y):a.level.area[0],honey=a.level.id==='honey',tide=a.level.id==='tide',entry=entryOf();
  if(a.foundSouvenirs.length){
   for(const id of a.foundSouvenirs)progress=grantSouvenir(id,progress);
   persist();
@@ -887,9 +943,18 @@ function hud(time:number,fps:number){
  el('location-name').textContent=region.name;el('location-en').textContent=region.sub;
  document.querySelector('.location-number')!.textContent=String(Math.max(1,a.level.area.findIndex(r=>r.name===region.name)+1)).padStart(2,'0');
  document.querySelector('.chapter')!.innerHTML=`${entry.chapter} <b>·</b> ${entry.name}`;
- el('hint').textContent=a.level.hint(c.x,a.sim.groups().length,c.y);
+ el('hint').textContent=a.level.ecology.prompt||a.level.hint(c.x,a.sim.groups().length,c.y);
  el('dew-count').textContent=String(a.level.dew.filter(d=>d.got).length);
  el('dew-total').textContent=`/ ${a.level.dew.length}`;
+ const preview=a.run.preview();
+ const scoreBox=el('score-count');
+ if(scoreBox.textContent!==String(preview.total)){
+  scoreBox.textContent=String(preview.total);
+  scoreBox.parentElement?.classList.add('flash');
+  window.setTimeout(()=>scoreBox.parentElement?.classList.remove('flash'),280);
+ }
+ const clock=Math.floor(a.run.activeSeconds),mins=Math.floor(clock/60),secs=clock%60;
+ el('time-count').textContent=`${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
  el('vitals').classList.toggle('hidden',!a.level.features.combat);
  el('hearts').textContent=a.level.features.combat?'♥'.repeat(a.hearts)+'♡'.repeat(Math.max(0,5-a.hearts)):'';
  el('ammo').textContent=a.level.features.combat?`弹 ${a.ammo}/10`:'';
@@ -906,10 +971,12 @@ function hud(time:number,fps:number){
    el('boss-fill-b').style.width=`${Math.max(0,Math.min(100,other.maxHp?other.hp/other.maxHp*100:0))}%`;
   }
  }
- const quests=a.level.features.quests?a.level.quests.map(q=>{
+ const mainQuests=a.level.features.quests?a.level.quests.map(q=>{
   const p=a.questProgress(q.id);
   return `${q.kind==='main'?'主线':'支线'} ${q.title} ${p.have}/${p.need}`;
  }).join(' · '):'';
+ const ecoQuests=a.level.ecology.questLines().map(q=>`支线 ${q.title} ${q.have}/${q.need}`).join(' · ');
+ const quests=[mainQuests,ecoQuests].filter(Boolean).join(' · ');
  el('quest-line').textContent=quests;
  el('quest-line').classList.toggle('hidden',!quests);
  el('pack').classList.toggle('hidden',!a.pack.open);
@@ -935,6 +1002,7 @@ function hud(time:number,fps:number){
  el('modal-pause').classList.toggle('hidden',won||a.dead);
  el('modal-win').classList.toggle('hidden',!won);
  el('modal-dead').classList.toggle('hidden',!a.dead);
+ if(!won){el('score-badges').classList.add('hidden');el('score-remain').classList.add('hidden');el('score-journal').classList.add('hidden');}
  el('debug').classList.toggle('hidden',!a.debug);
  syncScheme();
  if(a.debug)el('debug').textContent=`PBF · ${a.sim.particles.length} particles · ${Math.round(fps)} FPS\nx ${c.x.toFixed(0)} / y ${c.y.toFixed(0)} · ${a.sim.groups().length} groups\n${input.scheme} · ${a.sim.climbing?'climbing':'free'}`;
@@ -942,13 +1010,48 @@ function hud(time:number,fps:number){
   el('modal-eyebrow').textContent='BODY SCATTERED';
   el('modal-title').textContent='身体散掉了';
   el('modal-copy').textContent='晨露、敌人、背包都回到出发时。再从露水草甸走一遍。';
+ }else if(a.paused&&!won){
+  el('modal-eyebrow').textContent='TAKE A LITTLE BREATH';
+  el('modal-title').textContent='在苔藓上，歇一会儿。';
+  el('modal-copy').textContent='森林会等你。准备好后，再出发。';
  }
  if(won){
-  const dew=a.level.dew.filter(d=>d.got).length,clock=`${Math.floor(a.elapsed/60)} 分 ${Math.floor(a.elapsed%60)} 秒`;
+  const dew=a.level.dew.filter(d=>d.got).length,clock=`${Math.floor(a.elapsed/60)} 分 ${Math.floor(a.elapsed%60)} 秒`,result=a.lastRun??a.run.finish();
   const next=nextPlayable(a.level.id,progress);
   el('modal-eyebrow').textContent=entry.winEyebrow;
   el('modal-title').textContent=entry.winTitle;
   el('modal-copy').textContent=`你穿过了${entry.name}，带回 ${dew} / ${a.level.dew.length} 颗${entry.dewName}。用时 ${clock}。`;
+  el('score-breakdown').classList.remove('hidden');
+  const contentScore=result.breakdown.collect+result.breakdown.events+result.breakdown.feats;
+  const badgeName:Record<string,string>={clear:'通关',collector:'全收集',ecologist:'生态学家',challenger:'挑战者'};
+  const remain=[
+   `${result.collectedIds.length}/${a.level.dew.length+a.level.souvenirs.length} 采集`,
+   `${result.eventIds.length}/${a.level.ecology.events.length} 事件`,
+   `${result.featIds.filter(id=>id.includes('challenge')).length}/${a.level.ecology.challenges.length} 挑战`,
+  ].join(' · ');
+  el('score-breakdown').textContent=`内容 ${contentScore} · 通关 ${result.breakdown.clear} · 速度 ${result.breakdown.speed} · 总分 ${result.breakdown.total}`;
+  el('score-badges').classList.remove('hidden');
+  el('score-badges').innerHTML=result.badges.length?result.badges.map(b=>`<i>${badgeName[b]??b}</i>`).join(''):'<i>本局暂无额外徽章</i>';
+  el('score-remain').classList.remove('hidden');
+  el('score-remain').textContent=`未完成 · ${remain}`;
+  el('score-journal').classList.remove('hidden');
+  el('score-journal').textContent=`图鉴 ${journal.souvenirs.length?journal.souvenirs.map(id=>itemOf(id)?.name??id).join(' · '):'还没有纪念物'}`;
+  el('join-rank').classList.toggle('hidden',!result.eligible);
+  el('join-rank').textContent=journal.toyConsent?'提交本局分数':'参与排行';
+  if(handledRunId!==result.runId){
+   handledRunId=result.runId;
+   journal=recordRun(journal,result);
+   for(const id of result.collectedIds)journal=recordDiscovery(journal,id);
+   for(const id of result.eventIds)journal=recordDiscovery(journal,id);
+   for(const id of a.foundSouvenirs)journal=recordSouvenir(journal,id);
+   saveJournal(journal);
+   void a.toy.saveCloud(encodeCloud(journal));
+   void a.toy.ranks(a.level.id).then(board=>{
+    if(!board.list.length)return;
+    const box=el('score-breakdown');
+    box.textContent+=` · 榜首 ${board.list[0].nickname} ${board.list[0].score}`;
+   }).catch(()=>{});
+  }
   el('next-level').classList.toggle('hidden',!next||isCustomId(a.level.id));
   if(next)el('next-level').innerHTML=`进入${next.name} <span>→</span>`;
  }

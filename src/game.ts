@@ -13,13 +13,34 @@ import {loadMap,loadOfficialOverride} from './editor/store';
 import {CAMY_LOCKED,type LevelFeatures} from './catalog';
 import {CombatSystem} from './combat/combat';
 import {ENEMIES,activeSkill,isBoss,livingGates,makeActor,stepMachine} from './ai/machine';
-import {type Actor} from './actor/actor';
+import {GROUNDED,dashHitsPlayer,resolveActor,separateFromPlayer,type Actor} from './actor/actor';
 import {AbilitySystemComponent} from './gas/asc';
 import {applyEffect} from './gas/effects';
 import {tryActivate} from './gas/catalog';
 import {Inventory} from './items/inventory';
 import {itemOf} from './items/defs';
 import {MoodDirector} from './face/mood';
+import {RunSession,type RunResult} from './run';
+import {ToyService} from './platform/toy';
+import {createEcology,fillCollectibles} from './ecology/content';
+import {EcoWorld} from './ecology/world';
+import type {ScoreTargets} from './run';
+
+const ELITE=new Set(['bear','eboar','wk1','wk2','escort','herder']);
+function featWeight(kind:string){
+ if(ENEMIES[kind]?.boss)return 5;
+ if(ELITE.has(kind))return 2;
+ return 1;
+}
+function scoreTargets(level:{id:string;dew:{id?:string;rarity?:string}[];souvenirs:{id:string}[];enemies:{id:string;kind:string}[];ecology:{events:{id:string}[];challenges:{id:string}[]}}):ScoreTargets{
+ const collect:Record<string,number>={};
+ level.dew.forEach((d,i)=>{collect[d.id??`${level.id}-dew-${i}`]=d.rarity==='rare'?3:1;});
+ for(const s of level.souvenirs)collect[s.id]=5;
+ const feats:Record<string,number>={};
+ for(const e of level.enemies)feats[e.id]=featWeight(e.kind);
+ for(const c of level.ecology.challenges)feats[c.id]=5;
+ return {collect,events:level.ecology.events.map(e=>e.id),feats};
+}
 
 const MAX_HEARTS=5,MAX_AMMO=10;
 export const SWALLOW_RANGE=260;
@@ -48,7 +69,10 @@ export class Adventure {
  mood=new MoodDirector();
  pack=new Inventory();
  actors:Actor[]=[];
- foundSouvenirs:string[]=[];
+  foundSouvenirs:string[]=[];
+  run!:RunSession;
+  lastRun?:RunResult;
+  toy=new ToyService();
  defeated:Record<string,number>={};
  pulses:{x:number;y:number;facing:number;power:number}[]=[];
  swallow:Swallow|null=null;
@@ -58,13 +82,15 @@ export class Adventure {
  private accumulator=0;private jumpQueued=false;private last=emptyActions();
  private refillAcc=0;private healAcc=0;private meleeHold=0;private dodgeCd=0;private spawnN=0;
  private wet=false;private grounded=false;private airTime=0;
- constructor(){this.sim.water=this.level.water;this.bootActors();}
+ constructor(){this.sim.water=this.level.water;this.bootActors();this.run=new RunSession('forest',{collect:{},events:[],feats:{}},true);}
  selectLevel(id:string,layout?:LevelLayout){
   const stored=isCustomId(id)?loadMap(id):isOfficialId(id)?loadOfficialOverride(id):undefined;
   const used=layout??stored?.layout;
   const chapter=stored?.source??(isOfficialId(id)?id:this.keepSource)??'forest';
   this.keepLayout=used;
   this.level=chapter==='honey'?new HoneyLevel(used):chapter==='tide'?new TideLevel(used):chapter==='wind'?new WindLevel(used):chapter==='mirror'?new MirrorLevel(used):new Level(used??FOREST_LAYOUT);
+  if(!used?.ecology)this.level.ecology=new EcoWorld(createEcology(chapter,this.level.base,[...(this.level.waters??[]),this.level.water]));
+  if(!isCustomId(id))fillCollectibles(this.level,id);
   if(used&&this.keepFeatures)this.level.features=this.keepFeatures;
   else if(stored?.features)this.level.features=stored.features;
   this.sim=new SlimeSimulation(this.level.checkpoint.x,this.level.checkpoint.y,this.level.solids);
@@ -72,6 +98,8 @@ export class Adventure {
   this.water=new WaterSimulation(this.level.water);
   this.camera=this.cameraY=this.elapsed=0;this.paused=false;this.dead=false;this.linger=false;this.accumulator=0;this.clearInput();
   this.resetVitals();this.bootActors();this.mood=new MoodDirector();this.levelVersion++;
+  const eligible=!isCustomId(id)&&!this.fromEditor&&!stored;
+  this.run=new RunSession(this.level.id,scoreTargets(this.level),eligible,this.level.contentVersion);
  }
  resetVitals(){
   this.asc=new AbilitySystemComponent({hp:MAX_HEARTS,maxHp:MAX_HEARTS,ammo:MAX_AMMO,attack:1});
@@ -79,11 +107,12 @@ export class Adventure {
   this.combat=new CombatSystem();this.pack.clear();this.foundSouvenirs=[];this.defeated={};
   this.notices=[];this.notice='';this.noticeUntil=0;this.swallow=null;this.meleeHold=0;this.pulses=[];
   this.ghosts=[];this.dodgeCd=0;this.spawnN=0;this.dead=false;this.cues=[];
+  this.lastRun=undefined;
  }
  bootActors(){
   this.actors=this.level.enemies.map(spot=>makeActor(spot.kind,spot.x,spot.y,spot.id,spot.patrol??50));
  }
- reset(){this.level.respawn(this.sim);this.water=new WaterSimulation(this.level.water);this.clearInput();}
+ reset(){this.level.respawn(this.sim);this.water=new WaterSimulation(this.level.water);this.clearInput();this.run.rewind();}
  restartRun(){
   const revoke=[...this.foundSouvenirs];
   this.selectLevel(this.level.id,this.keepLayout);
@@ -262,15 +291,17 @@ export class Adventure {
  collectKill(actor:Actor){
   this.defeated[actor.kind]=(this.defeated[actor.kind]??0)+1;
   const def=ENEMIES[actor.kind];
+  if(this.run.award('feat',actor.id))this.message(`击败 ${def?.name??'敌人'} · 内容 ${this.run.contentScore}`);
+  else if(def?.boss)this.message(`击败了${def.name}`);
   if(def?.drop&&Math.random()<def.drop.chance&&this.pack.add(def.drop.id))this.cue('dew');
-  if(def?.boss)this.message(`击败了${def.name}`);
   if(def?.gate||this.level.enemies.some(e=>ENEMIES[e.kind]?.gate))this.level.bossDown=!livingGates(this.actors);
  }
  tick(delta:number,actions?:Actions){
   if(actions)this.apply(actions);
   this.time+=Math.min(delta,.05);
-  if(this.paused||this.frozen()||this.dead){this.accumulator=0;return;}
+  if(this.paused||this.frozen()||this.dead||this.pack.open){this.accumulator=0;return;}
   this.accumulator+=Math.min(delta,.05);
+  if(this.started)this.run.advance(Math.min(delta,.05),true);
   while(this.accumulator>=1/120){
    const slow=this.combat.slowAt(this.sim.center(this.sim.activeGroup).x,this.sim.center(this.sim.activeGroup).y);
    const move=this.started?this.last.move*(slow?.38:1):0;
@@ -287,7 +318,7 @@ export class Adventure {
    else if(!(this.level instanceof TideLevel))this.water.step(1/120,this.sim.particles);
    const dewBefore=this.level.dew.filter(d=>d.got).length;
    const souvenirsBefore=this.level.souvenirs.filter(s=>s.got).map(s=>s.id);
-   this.jumpQueued=false;this.level.update(this.sim,1/120);
+   this.jumpQueued=false;this.level.update(this.sim,1/120,this.last.interact);
    if(this.started&&this.level instanceof TideLevel&&this.level.fallHit){this.cue('splash');this.sim.impactJelly(.7);}
    const dewAfter=this.level.dew.filter(d=>d.got).length;
     if(this.level.ported){this.message('穿过星门');this.mood.pulse('happy',.7,36);}
@@ -302,6 +333,7 @@ export class Adventure {
     if(!souvenir.got||souvenirsBefore.includes(souvenir.id))continue;
     this.pack.add(souvenir.id);
     if(!this.foundSouvenirs.includes(souvenir.id))this.foundSouvenirs.push(souvenir.id);
+    this.run.award('collect',souvenir.id);
     this.asc.tags.add(`item.souvenir.${souvenir.id}`);
     this.message(`纪念物 · ${itemOf(souvenir.id)?.name??souvenir.name}`);
     this.mood.pulse('happy',1.1,50);
@@ -315,6 +347,26 @@ export class Adventure {
    this.stepWorld(1/120);
    this.accumulator-=1/120;
    if(this.started)this.elapsed+=1/120;
+   for(const d of this.level.dew){
+    if(d.got)this.run.award('collect',d.id??`${this.level.id}-dew-${this.level.dew.indexOf(d)}`);
+   }
+   for(const signal of this.level.ecology.drainSignals()){
+    if(signal.type==='event')this.run.award('event',signal.id);
+    if(signal.type==='challenge')this.run.award('feat',signal.id);
+    if(signal.type==='event'){
+     this.message(signal.text??this.ecologyMessage(signal.id));
+     this.mood.pulse('happy',.8,45);
+     this.cue('dew');
+    }else if(signal.type==='interact'&&signal.text){
+     this.message(signal.text.replace(/^按 F /,'好了 · '));
+    }else if(signal.type==='blocked'&&signal.text)this.message(signal.text);
+    else if(signal.type==='challenge'){
+     this.message(`技巧挑战完成 · ${signal.id}`);
+     this.mood.pulse('focus',.65,38);
+     this.cue('dew');
+    }else if(signal.type==='timeout')this.message('挑战超时，重新来过');
+   }
+   if(this.level.complete&&!this.lastRun)this.lastRun=this.run.finish();
   }
   const center=this.sim.center(),target=Math.max(0,Math.min(this.level.width-1280,center.x-460));
   this.camera+=(target-this.camera)*(1-Math.exp(-delta*4));
@@ -336,6 +388,17 @@ export class Adventure {
   this.dodgeCd=Math.max(0,this.dodgeCd-Math.min(delta,.05));
   for(const g of this.ghosts)g.t+=Math.min(delta,.05);
   this.ghosts=this.ghosts.filter(g=>g.t<g.life);
+ }
+
+ private ecologyMessage(id:string){
+  const messages:Record<string,string>={
+   'forest-eco-1':'蜗牛搬家完成 · 根洞露出来了', 'forest-eco-2':'灯笼串亮起 · 夜花开了',
+   'honey-eco-1':'工蜂准时下班 · 升降台启动', 'honey-eco-2':'蚂蚁过河 · 蜡封礼物出现',
+   'tide-eco-1':'寄居蟹换壳成功 · 瀑后藏龛打开', 'tide-eco-2':'导流完成 · 珊瑚和小鱼回来了', 'tide-eco-3':'漂流瓶拼成潮诗',
+   'wind-eco-1':'风铃合奏 · 鸟群带来种子荚', 'wind-eco-2':'风筝路线接通 · 捷径形成', 'wind-eco-3':'风送到信台了',
+   'mirror-eco-1':'月莲被照亮 · 倒影小路出现', 'mirror-eco-2':'星屑花开了 · 湖面在发光', 'mirror-eco-3':'爱你老己 · 星门醒来',
+  };
+  return messages[id]??'生态事件完成 · 环境回应了';
  }
  private beginSwallow(prey:Actor){
   prey.state='reel';prey.invuln=9;
@@ -440,7 +503,7 @@ export class Adventure {
    if(was==='telegraph'&&actor.state==='attack'){
     const skill=activeSkill(actor,def);
     if(actor.asc)tryActivate(actor.asc,`enemy.${skill.kind}`,{
-     self:actor.asc,combat:this.combat,x:actor.x,y:actor.y,facing:actor.facing,
+     self:actor.asc,combat:this.combat,x:actor.x,y:actor.y,facing:actor.facing,h:actor.h,
      targetX:body.x,targetY:body.y,range:skill.range,name:def.name,actors:this.actors,
      spawn:(kind,x,y)=>this.spawn(kind,x,y),
      hitPlayer:(damage,why)=>this.hurt(damage,why),
@@ -453,6 +516,11 @@ export class Adventure {
      this.cue('ult');
     }else if(skill.kind==='gale'||skill.kind==='parry')this.cue('slash');
    }
+   if(actor.state==='attack'){
+    const dash=activeSkill(actor,def);
+    if((dash.kind==='pounce'||dash.kind==='charge')&&dashHitsPlayer(actor,body.x,body.y,dash.range))this.hurt(1,dash.kind==='pounce'?`${def.name}扑到了你`:`${def.name}撞到了你`);
+   }
+   if(GROUNDED.has(actor.kind)&&separateFromPlayer(actor,body.x,body.y,28))resolveActor(actor,this.level.solids);
    if(actor.kind==='hive'&&actor.asc&&actor.state!=='idle'&&actor.state!=='patrol'){
     if(!actor.asc.cds.has('enemy.summon'))actor.asc.setCd('enemy.summon',5);
     else if(tryActivate(actor.asc,'enemy.summon',{

@@ -12,6 +12,7 @@ export type AbilityContext={
  targetY?:number;
  home?:{id?:string;x:number;y:number};
  range?:number;
+ h?:number;
  name?:string;
  actors?:Actor[];
  spawn?:(kind:string,x:number,y:number)=>void;
@@ -63,9 +64,10 @@ export const ABILITIES:Record<string,AbilityDef>={
   return true;
  }},
  'enemy.charge':{id:'enemy.charge',activate:ctx=>{
-  ctx.combat.charge(ctx.x,ctx.y,ctx.facing);
+  ctx.combat.charge(ctx.x,ctx.y,ctx.facing,ctx.h);
   if(ctx.name==='毒纹猪')ctx.combat.puddle(ctx.x,ctx.y);
-  if(ctx.hitPlayer&&ctx.targetX!=null&&Math.abs(ctx.targetX-ctx.x)<70&&Math.abs((ctx.targetY??ctx.y)-ctx.y)<40)ctx.hitPlayer(1,`${ctx.name??'敌人'}撞到了你`);
+  const mid=ctx.y-(ctx.h??42)*.5;
+  if(ctx.hitPlayer&&ctx.targetX!=null&&Math.hypot(ctx.targetX-ctx.x,(ctx.targetY??mid)-mid)<(ctx.range??70))ctx.hitPlayer(1,`${ctx.name??'敌人'}撞到了你`);
   return true;
  }},
  'enemy.slam':{id:'enemy.slam',activate:ctx=>{
@@ -86,8 +88,9 @@ export const ABILITIES:Record<string,AbilityDef>={
   return true;
  }},
  'enemy.pounce':{id:'enemy.pounce',activate:ctx=>{
-  ctx.combat.charge(ctx.x,ctx.y,ctx.facing);
-  if(ctx.hitPlayer&&ctx.targetX!=null&&Math.hypot(ctx.targetX-ctx.x,(ctx.targetY??ctx.y)-ctx.y)<80)ctx.hitPlayer(1,`${ctx.name??'敌人'}扑到了你`);
+  ctx.combat.charge(ctx.x,ctx.y,ctx.facing,ctx.h);
+  const mid=ctx.y-(ctx.h??42)*.5;
+  if(ctx.hitPlayer&&ctx.targetX!=null&&Math.hypot(ctx.targetX-ctx.x,(ctx.targetY??mid)-mid)<(ctx.range??90))ctx.hitPlayer(1,`${ctx.name??'敌人'}扑到了你`);
   return true;
  }},
  'enemy.parry':{id:'enemy.parry',activate:ctx=>{

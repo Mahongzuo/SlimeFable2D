@@ -21,6 +21,7 @@ export class WindLevel extends Level{
   return g>1?'把两团带到一起，按 E 合并 · 灰冠风修守着神殿':'灰冠风修 · 躲开剑气和振铃圈，击败他才能离开';
  }
  override respawn(sim:SlimeSimulation){
+  this.ecology.rewind();
   this.solids=[...this.base];
   sim.reset(this.checkpoint.x,this.checkpoint.y);
   sim.solids=this.solids;

@@ -21,8 +21,8 @@ export class MirrorLevel extends Level{
  bodyAt(x:number,y:number):Rect|null{
   return inside(this.shoal,x,y)?this.shoal:null;
  }
- override update(sim:SlimeSimulation,dt:number){
-  super.update(sim,dt);
+ override update(sim:SlimeSimulation,dt:number,interact=false){
+  super.update(sim,dt,interact);
   const c=sim.center();
   sim.water=this.bodyAt(c.x,c.y);
  }
@@ -33,6 +33,7 @@ export class MirrorLevel extends Level{
   return g>1?'把两团带到一起，按 E 合并 · 韩小立与白角镜使守门':'韩小立与白角镜使 · 分身拆火力，两人都倒下后才能离开';
  }
  override respawn(sim:SlimeSimulation){
+  this.ecology.rewind();
   this.solids=[...this.base];
   sim.reset(this.checkpoint.x,this.checkpoint.y);
   sim.solids=this.solids;

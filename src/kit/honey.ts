@@ -1,5 +1,14 @@
 import type {KitEntry} from './defs';
 
+const HONEY_ECO:KitEntry[]=[
+ {id:'honey-pollen',chapter:'honey',category:'interact',name:'花粉团',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'蜜'},
+ {id:'honey-nectar-flower',chapter:'honey',category:'interact',name:'采蜜花',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'蜜'},
+ {id:'honey-drip-valve',chapter:'honey',category:'interact',name:'蜜滴阀',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'蜜'},
+ {id:'honey-sealed-jar',chapter:'honey',category:'interact',name:'蜡封罐',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'蜜'},
+ {id:'honey-wax-see-saw',chapter:'honey',category:'interact',name:'蜂蜡跷板',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'蜜'},
+ {id:'honey-lift',chapter:'honey',category:'interact',name:'蜂巢升降台',place:'point',play:'interact',interact:'press',defaults:{s:1},draw:'canvas',mark:'蜜'},
+];
+
 export const HONEY_KIT:KitEntry[]=[
  {id:'honey-wax-rock',chapter:'honey',category:'terrain',name:'蜜蜡岩',place:'rect',play:'solid',defaults:{w:400,h:360},draw:'canvas',solidKind:'wax-rock',mark:'蜜'},
  {id:'honey-hex-pad',chapter:'honey',category:'terrain',name:'蜂巢台',place:'rect',play:'solid',interact:'oneWay',defaults:{w:86,h:20},draw:'canvas',solidKind:'hex-pad',oneWay:true,mark:'蜜'},
@@ -11,8 +20,11 @@ export const HONEY_KIT:KitEntry[]=[
  {id:'honey-mound',chapter:'honey',category:'prop',name:'蜡堆',place:'point',play:'dress',defaults:{s:1.1},draw:'canvas',mark:'蜜'},
  {id:'honey-puff',chapter:'honey',category:'prop',name:'花粉',place:'point',play:'dress',defaults:{s:1},draw:'canvas',mark:'蜜'},
  {id:'dew-honey',chapter:'honey',category:'collect',name:'蜜露',place:'point',play:'pickup',pickup:'dew',dewSkin:'honey',defaults:{},draw:'canvas',mark:'蜜'},
+ {id:'souvenir-honeydrop',chapter:'honey',category:'collect',name:'蜜心',place:'point',play:'pickup',pickup:'souvenir',souvenirId:'honeydrop',defaults:{},draw:'canvas',mark:'蜜'},
  {id:'critter-bee',chapter:'honey',category:'critter',name:'蜂',place:'point',play:'dress',defaults:{s:1},draw:'image',src:'assets/honey/bee.png',mark:'蜜'},
  {id:'critter-ant',chapter:'honey',category:'critter',name:'蚁',place:'point',play:'dress',defaults:{s:1},draw:'image',src:'assets/honey/ant.png',mark:'蜜'},
+ {id:'critter-honey-moth',chapter:'honey',category:'critter',name:'蜜蛾',place:'point',play:'dress',defaults:{s:1},draw:'canvas',mark:'蜜'},
  {id:'enemy-bear',chapter:'honey',category:'enemy',name:'裂纹熊',place:'point',play:'actor',actorKind:'bear',defaults:{},draw:'canvas',mark:'蜜'},
  {id:'enemy-eboar',chapter:'honey',category:'enemy',name:'毒纹猪',place:'point',play:'actor',actorKind:'eboar',defaults:{},draw:'canvas',mark:'蜜'},
+ ...HONEY_ECO,
 ];

@@ -2,19 +2,19 @@ import {CATALOG,levelById,previousLevel,type LevelEntry} from './catalog';
 import {isCustomId} from './editor/schema';
 
 export type SchemePref='auto'|'keyboard'|'gamepad'|'touch';
-export type KeyAction='left'|'right'|'up'|'down'|'jump'|'squeeze'|'split'|'merge'|'switch'|'select1'|'select2'|'reset'|'pause'|'melee'|'ranged'|'inventory'|'dodge';
+export type KeyAction='left'|'right'|'up'|'down'|'jump'|'squeeze'|'split'|'merge'|'switch'|'select1'|'select2'|'reset'|'pause'|'melee'|'ranged'|'inventory'|'dodge'|'interact';
 export type KeyBindings=Record<KeyAction,string>;
 
 export const DEFAULT_BINDINGS:KeyBindings={
  left:'KeyA',right:'KeyD',up:'KeyW',down:'KeyS',jump:'Space',squeeze:'KeyS',
  split:'KeyQ',merge:'KeyE',switch:'KeyC',select1:'Digit1',select2:'Digit2',reset:'KeyR',pause:'Escape',
- melee:'KeyJ',ranged:'KeyK',inventory:'KeyI',dodge:'ShiftLeft',
+ melee:'KeyJ',ranged:'KeyK',inventory:'KeyI',dodge:'ShiftLeft',interact:'KeyF',
 };
 
 export const BINDING_LABELS:Record<KeyAction,string>={
  left:'左移',right:'右移',up:'攀爬',down:'下滑',jump:'跳跃',squeeze:'挤压',
  split:'分裂',merge:'合并',switch:'切换',select1:'1 号',select2:'2 号',reset:'检查点',pause:'暂停',
- melee:'近战',ranged:'远程',inventory:'背包',dodge:'闪避',
+ melee:'近战',ranged:'远程',inventory:'背包',dodge:'闪避',interact:'互动',
 };
 
 export type Progress={

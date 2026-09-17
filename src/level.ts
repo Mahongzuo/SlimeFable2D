@@ -3,6 +3,8 @@ import {CAMY_FOREST,FEATURES_FOREST,type CamClamp,type LevelFeatures} from './ca
 import {FOREST_LAYOUT,WORLD_HEIGHT,WORLD_WIDTH} from './content/chapter1/forest';
 import {cloneLayout,type AreaBand,type CheckTrigger,type DewSpot,type DressingSpot,type EnemySpot,type HintBand,type LevelLayout,type PortalSpot,type QuestDef,type SignSpot,type SouvenirSpot,type StakeSpot,type WinCond} from './content/types';
 import {SlimeSimulation,type Rect} from './physics';
+import {EcoWorld} from './ecology/world';
+import {createEcology} from './ecology/content';
 
 export {WORLD_HEIGHT,WORLD_WIDTH};
 export type {DewSpot,SouvenirSpot,StakeSpot};
@@ -42,6 +44,8 @@ export class Level {
  portals:PortalSpot[];
  portalCool=0;
  ported=false;
+ ecology:EcoWorld;
+ contentVersion='living-v1';
  waters:{x:number;y:number;w:number;h:number}[];
  constructor(layout:LevelLayout=FOREST_LAYOUT){
   const data=cloneLayout(layout);
@@ -70,6 +74,8 @@ export class Level {
   this.win=data.win;
   this.dressing=data.dressing??[];
   this.portals=data.portals??[];
+  this.contentVersion=data.contentVersion??'living-v1';
+  this.ecology=new EcoWorld(data.ecology??createEcology(this.id,data.base,[...(data.waters??[]),data.water]));
   this.gateOpen=this.plates.length<2||data.gate.w<=2;
   this.bossDown=!data.enemies.some(e=>ENEMIES[e.kind]?.gate);
   if(this.gateOpen)this.solids=[...data.base];
@@ -101,6 +107,8 @@ export class Level {
   this.win=data.win;
   this.dressing=data.dressing??[];
   this.portals=data.portals??[];
+  this.contentVersion=data.contentVersion??'living-v1';
+  this.ecology=new EcoWorld(data.ecology??createEcology(this.id,data.base,[...(data.waters??[]),data.water]));
  }
  get mainDew(){return this.dew.filter(d=>d.role!=='bonus');}
  get mainDewDone(){return this.mainDew.length>0&&this.mainDew.every(d=>d.got);}
@@ -115,9 +123,20 @@ export class Level {
   const byY=byX.filter(a=>a.y0===undefined||(y>=a.y0&&y<(a.y1??9e9)));
   return byY.at(-1)??byX.at(-1)??bands[0];
  }
+ ecoSolids():Rect[]{
+  return this.ecology.revealedPlatforms();
+ }
  syncSolids(sim?:SlimeSimulation){
-  this.solids=this.gateOpen||this.gate.w<=2?[...this.base]:[...this.base,this.gate];
+  this.solids=this.gateOpen||this.gate.w<=2?[...this.base,...this.ecoSolids()]:[...this.base,this.gate,...this.ecoSolids()];
   if(sim)sim.solids=this.solids;
+ }
+ applyEcoPlatforms(sim:SlimeSimulation){
+  const extra=this.ecoSolids();
+  if(!extra.length)return;
+  const key=(r:Rect)=>`${r.x}|${r.y}|${r.w}`;
+  const have=new Set(this.solids.map(key));
+  for(const r of extra)if(!have.has(key(r)))this.solids.push(r);
+  sim.solids=this.solids;
  }
  private waterAt(x:number,y:number){
   if(this.water.w>2&&x>=this.water.x&&x<=this.water.x+this.water.w&&y>=this.water.y&&y<=this.water.y+this.water.h)return this.water;
@@ -137,8 +156,10 @@ export class Level {
   if(c.x>1180&&c.x<1600&&c.y<280&&this.checkpoint.y>400)this.checkpoint={x:1260,y:220};
   if(c.x>1700&&c.x<2200&&c.y>1400)this.checkpoint={x:1860,y:1530};
  }
- update(sim:SlimeSimulation,dt:number){
+ update(sim:SlimeSimulation,dt:number,interact=false){
   const c=sim.center();
+  this.ecology.update(dt,sim,interact);
+  this.applyEcoPlatforms(sim);
   this.bumpChecks(c);
   const wet=this.waterAt(c.x,c.y);
   if(wet)sim.water=wet;
@@ -171,12 +192,12 @@ export class Level {
    const dest=this.portals.find(o=>o.pair===gate.pair&&o.id!==gate.id);
    if(!dest)continue;
    sim.plant(dest.x,dest.y-48);
-   this.portalCool=1.15;
+   this.portalCool=10;
    this.ported=true;
    return;
   }
  }
- respawn(sim:SlimeSimulation){sim.reset(this.checkpoint.x,this.checkpoint.y);sim.solids=this.solids;sim.water=this.waterAt(this.checkpoint.x,this.checkpoint.y)??this.water;}
+ respawn(sim:SlimeSimulation){this.ecology.rewind();sim.reset(this.checkpoint.x,this.checkpoint.y);sim.solids=this.solids;sim.water=this.waterAt(this.checkpoint.x,this.checkpoint.y)??this.water;}
  hint(x:number,groups:number,y=600):string{
   if(this.hints?.length){
    const hit=this.hints.filter(h=>x>=h.x0&&x<h.x1&&(h.y0===undefined||(y>=h.y0&&y<(h.y1??9e9))));

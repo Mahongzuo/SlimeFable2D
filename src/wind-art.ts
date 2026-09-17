@@ -2,7 +2,7 @@ import {W,H,canvas,rng} from './art';
 import {gapBelowDeck,keyedSprite,stampDeck} from './art-key';
 import {asset} from './asset';
 import {WIND_FALLS,WIND_HEIGHT,WIND_WIDTH} from './content/chapter4/wind';
-import {drawDressing,drawPortals} from './kit/view';
+import {drawDressing,drawPortals,drawEcology} from './kit/view';
 import {WIND_DECK,drawDeckGrass,gustDeckGrass,paintBasin,paintDeck,scatterDeckGrass,stirDeckGrass,type DeckGrass} from './kit/ground';
 import {keyMatte,keyWhite,makeSlab,paintColumn,paintProp,paintSlab,type Slab} from './kit/slab';
 import type {Level} from './level';
@@ -195,6 +195,7 @@ export class WindArt{
   drawDeckGrass(c,this.grasses,camera,time,sim.groups().map(g=>sim.center(g)));
   if(this.level.dressing.length)drawDressing(c,this.level.dressing,camera,time,sim);
   drawPortals(c,this.level.portals,camera,time);
+  drawEcology(c,this.level.ecology,camera,time);
   for(const s of this.level.signs??[])this.sign(c,s.x-camera,s.y,s.text,s.arrow);
   this.exitGate(c,camera,time);
   for(const d of this.level.dew){

@@ -67,6 +67,8 @@ export function drawGizmos(c:C,layout:LevelLayout,camera:number,cameraY:number,s
  layer('placed',()=>{
   for(const p of layout.plates){c.fillStyle='#d5e89c';c.beginPath();c.ellipse(p.x,p.y,18,5,0,0,Math.PI*2);c.fill();}
   for(const d of layout.dew){c.fillStyle='#ffe08a';c.beginPath();c.arc(d.x,d.y,7,0,Math.PI*2);c.fill();}
+  for(const o of layout.ecology?.interactables??[]){c.fillStyle='#9fd4ea';c.beginPath();c.arc(o.x,o.y-12,9,0,Math.PI*2);c.fill();}
+  for(const f of layout.ecology?.fauna??[]){c.fillStyle='#c6e87a';c.beginPath();c.ellipse(f.x,f.y-8,10,7,0,0,Math.PI*2);c.fill();}
   for(const s of layout.souvenirs){c.fillStyle='#c6e87a';c.fillRect(s.x-6,s.y-6,12,12);}
   for(const s of layout.stakes)box(c,s.x,s.y,s.w,s.h,'#ffb06088','#ffd8a0');
   c.fillStyle='#dcf3b4';c.fillRect(layout.checkpoint.x-2,layout.checkpoint.y-8,4,16);

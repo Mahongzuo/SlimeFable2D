@@ -1,57 +1,46 @@
-import {asset} from '../asset';
-
-type Frame={x:number;y:number;w:number;h:number};
-type Pack={img:HTMLImageElement;frames:Frame[];fps:number};
-
-const PACKS:Record<string,string>={
- slash:'vfx/slash/atlas.json',
- bow:'vfx/bow/atlas.json',
- magic:'vfx/magic/atlas.json',
- dragon:'vfx/dragon/atlas.json',
- shock:'vfx/shock/atlas.json',
-};
-
 export type AtlasClip={pack:string;x:number;y:number;t:number;life:number;scale?:number}
 
-function loadImg(src:string){
- return new Promise<HTMLImageElement>((ok,err)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=err;i.src=src;});
+type C=CanvasRenderingContext2D;
+
+function ink(pack:string){
+ if(pack==='slash')return {core:'#e8f6ff',edge:'#88bbff',glow:'#aaddff'};
+ if(pack==='bow')return {core:'#fff6d4',edge:'#88bbff',glow:'#aaddff'};
+ if(pack==='dragon')return {core:'#ffe08a',edge:'#f0a020',glow:'#ffd27a'};
+ if(pack==='shock')return {core:'#fff4b0',edge:'#f0c45a',glow:'#ffe08a'};
+ return {core:'#fff6c8',edge:'#88bbff',glow:'#c8e8ff'};
+}
+
+function drawClip(c:C,clip:AtlasClip,camera:number){
+ const u=Math.max(0,Math.min(1,clip.t/Math.max(.05,clip.life)));
+ const fade=Math.max(0,1-u*u);
+ const s=(clip.scale??1)*(1+u*.25);
+ const x=clip.x-camera,y=clip.y;
+ const col=ink(clip.pack);
+ c.save();c.translate(x,y);c.globalAlpha=fade;
+ if(clip.pack==='slash'){
+  c.strokeStyle=col.glow;c.lineWidth=5*s;c.beginPath();c.arc(8,-4,22*s,-1.1,.4);c.stroke();
+  c.strokeStyle=col.core;c.lineWidth=2.2*s;c.beginPath();c.arc(10,-6,20*s,-1,.35);c.stroke();
+ }else if(clip.pack==='bow'){
+  c.fillStyle=col.glow;c.beginPath();c.ellipse(0,6,3*s,10*s,0,0,Math.PI*2);c.fill();
+  c.fillStyle=col.edge;c.fillRect(-1,-10*s,2,22*s);
+  c.fillStyle=col.core;c.beginPath();c.moveTo(0,-16*s);c.lineTo(4,-6*s);c.lineTo(-4,-6*s);c.closePath();c.fill();
+ }else{
+  const n=clip.pack==='dragon'?10:7,r=(clip.pack==='dragon'?34:22)*s;
+  c.strokeStyle=col.glow;c.lineWidth=clip.pack==='dragon'?3.2:2.2;
+  c.beginPath();c.arc(0,0,r*(.45+u*.55),0,Math.PI*2);c.stroke();
+  c.strokeStyle=col.core;c.lineWidth=1.4;
+  for(let i=0;i<n;i++){
+   const a=i*(Math.PI*2/n)+u*1.2;
+   c.beginPath();c.moveTo(Math.cos(a)*r*.2,Math.sin(a)*r*.2);c.lineTo(Math.cos(a)*r,Math.sin(a)*r);c.stroke();
+  }
+ }
+ c.restore();
 }
 
 export class AtlasFx {
- private packs=new Map<string,Pack>();
- ready=false;
- constructor(){void this.hydrate();}
- private async hydrate(){
-  await Promise.all(Object.entries(PACKS).map(async([id,file])=>{
-   try{
-    const res=await fetch(asset(`assets/${file}`));
-    if(!res.ok)return;
-    const json=await res.json();
-    const image=json.meta?.image??'atlas.png';
-    const dir=file.replace(/\/[^/]+$/,'');
-    const img=await loadImg(asset(`assets/${dir}/${image}`));
-    const frames=Object.keys(json.frames??{}).sort().map(k=>{
-     const f=json.frames[k].frame;
-     return {x:f.x,y:f.y,w:f.w,h:f.h};
-    });
-    if(frames.length)this.packs.set(id,{img,frames,fps:16});
-   }catch{/* missing pack is fine */}
-  }));
-  this.ready=true;
- }
+ ready=true;
  draw(c:CanvasRenderingContext2D,clips:AtlasClip[],camera:number){
-  for(const clip of clips){
-   const pack=this.packs.get(clip.pack);
-   if(!pack||!pack.frames.length)continue;
-   const u=Math.max(0,Math.min(.999,clip.t/Math.max(.05,clip.life)));
-   const frame=pack.frames[Math.min(pack.frames.length-1,Math.floor(u*pack.frames.length))];
-   const scale=clip.scale??1;
-   const w=frame.w*scale,h=frame.h*scale;
-   c.save();
-   c.globalAlpha=Math.max(.2,1-u*.15);
-   c.drawImage(pack.img,frame.x,frame.y,frame.w,frame.h,clip.x-camera-w/2,clip.y-h*.7,w,h);
-   c.restore();
-  }
+  for(const clip of clips)drawClip(c,clip,camera);
  }
 }
 

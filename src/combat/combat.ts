@@ -112,7 +112,7 @@ export class CombatSystem {
   for(const item of this.charges){
    if(!item.alive)continue;
    item.x+=item.vx*dt;item.life-=dt;
-   if(item.life<=0||solids.some(s=>!s.oneWay&&overlaps(item.x-item.r,item.y-item.r,item.r*2,item.r*2,s.x,s.y,s.w,s.h)))item.alive=false;
+   if(item.life<=0||solids.some(s=>!s.oneWay&&s.y<item.y+4&&overlaps(item.x-item.r,item.y-item.r,item.r*2,item.r*2,s.x,s.y,s.w,s.h)))item.alive=false;
   }
   this.charges=this.charges.filter(s=>s.alive);
   for(const slam of this.slams)slam.t+=dt;
@@ -198,9 +198,9 @@ export class CombatSystem {
   this.floods.push({y,t:0,life});
   this.burst('shock',800,y,1,.9);
  }
- charge(x:number,y:number,facing:number){
-  this.charges.push({x:x+facing*28,y:y-16,vx:facing*340,r:18,alive:true,life:.45});
-  this.fx.push({kind:'bump',x,y:y-10,facing,t:0,life:.28});
+ charge(x:number,y:number,facing:number,h=42){
+  this.charges.push({x:x+facing*28,y:y-h*.45,vx:facing*340,r:18,alive:true,life:.45});
+  this.fx.push({kind:'bump',x,y:y-h*.45,facing,t:0,life:.28});
  }
  slam(x:number,y:number,r=90){
   this.slams.push({x,y,t:0,life:.42,r});

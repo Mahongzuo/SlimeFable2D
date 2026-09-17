@@ -26,6 +26,7 @@ export type Actor={
  cycle:number;
  dodgeCd:number;
  hopCd:number;
+ bumpLock:boolean;
 }
 
 export type Solid={x:number;y:number;w:number;h:number;oneWay?:boolean;kind?:string}
@@ -34,6 +35,30 @@ export function hitbox(a:Actor){return {x:a.x-a.w/2,y:a.y-a.h,w:a.w,h:a.h};}
 
 export function overlaps(ax:number,ay:number,aw:number,ah:number,bx:number,by:number,bw:number,bh:number){
  return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
+}
+
+export function dashHitsPlayer(actor:Actor,px:number,py:number,range:number){
+ return Math.hypot(px-actor.x,py-(actor.y-actor.h*.5))<=range;
+}
+
+function distToSeg(px:number,py:number,x1:number,y1:number,x2:number,y2:number){
+ const dx=x2-x1,dy=y2-y1,len=dx*dx+dy*dy;
+ const t=len===0?0:Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/len));
+ return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+}
+
+function capsuleHit(actor:Actor,px:number,py:number,slimeR:number){
+ const r=actor.w/2,midY=actor.y-actor.h*.5,half=Math.max(0,actor.h/2-r);
+ return distToSeg(px,py,actor.x,midY-half,actor.x,midY+half)<=r+slimeR;
+}
+
+export function separateFromPlayer(actor:Actor,px:number,py:number,slimeR=28){
+ if(actor.dead||actor.state==='dying'||actor.state==='reel')return false;
+ if(!capsuleHit(actor,px,py,slimeR)){actor.bumpLock=false;return false;}
+ if(actor.bumpLock)return false;
+ actor.bumpLock=true;
+ actor.x+=(actor.x>=px?1:-1)*3;
+ return true;
 }
 
 const ARENA_MIN=4560,ARENA_MAX=5160;

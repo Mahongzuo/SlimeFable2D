@@ -172,7 +172,7 @@
 .pack p{margin:10px 0 0;font-size:10px;color:#d5e3c0}
 .game-shell.honey-theme .hearts{color:#f6d17b}
 .game-shell.honey-theme .ammo{color:#ffe7b0}
-.game-shell:not(.forest-play) .forest-only,.game-shell.honey-theme .forest-only,.game-shell.honey-theme #quest-line,.game-shell.honey-theme #pack{display:none!important}
+.game-shell:not(.forest-play) .forest-only,.game-shell.honey-theme .forest-only,.game-shell.honey-theme #pack{display:none!important}
 .game-shell.editing .title-screen,.game-shell.editing .play-only{display:none!important}
 /* ---- Map studio: one 8px grid, one panel style, one control height ---- */
 .editor-ui{--ed-u:var(--ui-scale);--ed-pad:calc(10px * var(--ed-u));--ed-top:calc(64px * var(--ed-u));--ed-bot:calc(56px * var(--ed-u));--ed-left:calc(212px * var(--ed-u));--ed-right:calc(292px * var(--ed-u));--ed-panel:#1b3a31f4;--ed-line:#cde2ad2e;--ed-ink:#eef3dc;--ed-dim:#a9bfa2;--ed-well:#14302a;--ed-accent:#d8e5b9;--ed-accent-ink:#22453a;--ed-h:calc(30px * var(--ed-u));position:absolute;inset:0;z-index:18;pointer-events:none;font-size:calc(11px * var(--ed-u));color:var(--ed-ink)}
@@ -276,3 +276,4 @@
 .editor-hub-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .editor-new-card{position:absolute;z-index:3;width:min(420px,90%)}
 .editor-check{display:flex;align-items:center;gap:8px;margin:10px 0}
+.score-readout,.time-readout{display:inline-flex;align-items:baseline;gap:4px;color:#ecf4d0;min-width:52px}.score-readout b,.time-readout b{font-variant-numeric:tabular-nums}.time-readout b{color:#f4d889}.score-readout small,.time-readout small{font-size:10px;opacity:.7}.score-readout.flash b{color:#fff2a8}.score-breakdown{margin:10px 0 8px;padding:10px 14px;border-top:1px solid #d9eab044;color:#d9eab0;font-size:13px}.score-badges{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}.score-badges i{display:inline-block;padding:2px 8px;border:1px solid #d9eab066;border-radius:999px;font-size:11px;font-style:normal;color:#f4d889}.score-remain,.score-journal{font-size:12px;opacity:.85;margin:0 0 8px;color:#d9eab0}.journal-body{display:grid;gap:12px;margin:14px 0 8px;text-align:left}.journal-body h3{margin:0 0 4px;font-size:13px;color:#f4d889}.journal-body i{display:inline-block;margin:0 6px 4px 0;padding:2px 8px;border:1px solid #d9eab055;border-radius:999px;font-style:normal;font-size:12px}

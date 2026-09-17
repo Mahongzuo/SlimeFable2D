@@ -171,6 +171,17 @@ describe('editor maps',()=>{
   expect(kitById('sign-post')&&folderOfKit(kitById('sign-post')!)).toBe('scenery');
   expect(folderOfKit(kitById('mirror-portal')!)).toBe('placed');
  });
+ it('places ecology props and critters onto the official-style layout',()=>{
+  const layout=cloneLayout(blankDoc('生态',2560,1440,false).layout);
+  applyKit(layout,kitById('forest-dew-leaf')!,{x:420,y:560});
+  applyKit(layout,kitById('critter-snail')!,{x:520,y:560});
+  expect(layout.ecology?.interactables?.[0].kind).toBe('forest-dew-leaf');
+  expect(layout.ecology?.fauna?.[0].kind).toBe('snail');
+  expect(hitTest(layout,420,548,[])?.kind).toBe('eco');
+  expect(hitTest(layout,520,548,[])?.kind).toBe('fauna');
+  expect(listOutliner(layout).placed.some(r=>r.kind==='eco')).toBe(true);
+  expect(folderOfKit(kitById('critter-snail')!)).toBe('placed');
+ });
  it('pairs the second portal with the first and lists both in 摆放',()=>{
   const layout=cloneLayout(blankDoc('门',2560,1440,false).layout);
   const kit=kitById('mirror-portal')!;

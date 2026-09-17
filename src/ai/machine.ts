@@ -117,6 +117,21 @@ function nextOpenSkill(actor:Actor,def:EnemyDef){
  return (actor.cycle+1)%def.skills.length;
 }
 
+export function chooseSkill(actor:Actor,def:EnemyDef,dist:number){
+ const dash=def.skills.findIndex(s=>s.kind==='pounce'||s.kind==='charge');
+ if(dash>=0&&dist<=def.skills[dash].range)return dash;
+ const howl=def.skills.findIndex(s=>s.kind==='howl');
+ if(howl>=0&&dash>=0&&dist>def.skills[dash].range)return howl;
+ return nextOpenSkill(actor,def);
+}
+
+function attackTime(actor:Actor,skill:Skill){
+ if(actor.skill<0)return .45;
+ if(skill.kind==='pounce')return Math.min(.4,Math.max(.32,skill.range/260));
+ if(skill.kind==='charge')return Math.min(.4,Math.max(.32,skill.range/300));
+ return .12;
+}
+
 function settle(actor:Actor,view:WorldView,skipGrav=false){
  if(view.solids)resolveActor(actor,view.solids,view.dt,skipGrav);
  else if(actor.state!=='hop'&&GROUNDED.has(actor.kind))actor.y=actor.homeY;
@@ -276,10 +291,11 @@ export function stepMachine(actor:Actor,def:EnemyDef,view:WorldView){
   const speed=(def.boss?CHASE_SPEED:Math.max(def.speed,CHASE_SPEED))*hasteOf(actor)*neglected(actor,view);
   chaseMove(actor,view,dx,speed);
   if(def.melee&&dist<=def.melee.range&&actor.meleeCd<=0){beginMelee(actor,def);return;}
-  const next=def.skills[nextOpenSkill(actor,def)];
+  const idx=chooseSkill(actor,def,dist);
+  const next=def.skills[idx];
   if(actor.cooldown<=0&&dist<=next.range){
    if(def.boss)beginNextSkill(actor,def);
-   else {actor.skill=nextOpenSkill(actor,def);actor.cycle=actor.skill;actor.state='telegraph';actor.timer=def.skills[actor.skill].telegraph;}
+   else {actor.skill=idx;actor.cycle=actor.skill;actor.state='telegraph';actor.timer=def.skills[actor.skill].telegraph;}
   }
   return;
  }
@@ -291,7 +307,7 @@ export function stepMachine(actor:Actor,def:EnemyDef,view:WorldView){
   }
   if(actor.timer<=0){
    if(dist<=skill.range&&actor.cooldown<=0&&sameBand(actor,view)){
-    if(def.skills.length>1)actor.skill=nextOpenSkill(actor,def);
+    if(def.skills.length>1)actor.skill=chooseSkill(actor,def,dist);
     actor.state='telegraph';actor.timer=activeSkill(actor,def).telegraph;
    }else actor.state=dist<hunt&&sameBand(actor,view)?'chase':'patrol';
   }
@@ -299,7 +315,7 @@ export function stepMachine(actor:Actor,def:EnemyDef,view:WorldView){
  }
  if(actor.state==='telegraph'){
   facePlayer(actor,dx);
-  if(actor.timer<=0){actor.state='attack';actor.timer=actor.skill<0?.45:.12;}
+  if(actor.timer<=0){actor.state='attack';actor.timer=attackTime(actor,skill);}
   return;
  }
  if(actor.state==='attack'){
@@ -352,7 +368,7 @@ export function makeActor(kind:string,x:number,y:number,id:string,patrol=50):Act
   id,kind,x,y,w:def.w,h:def.h,vx:0,vy:0,
   hp:def.hp,maxHp:def.hp,asc,faction:'enemy',facing:x>400?-1:1,
   invuln:0,dead:false,state:'idle',timer:0,cooldown:0,patrol,homeX:x,homeY:y,
-  skill:def.skills.length>1?-1:0,meleeCd:0,cycle:-1,dodgeCd:0,hopCd:0,
+  skill:def.skills.length>1?-1:0,meleeCd:0,cycle:-1,dodgeCd:0,hopCd:0,bumpLock:false,
  };
 }
 

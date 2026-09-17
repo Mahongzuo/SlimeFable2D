@@ -1,6 +1,8 @@
 import {CAMY_HONEY,FEATURES_HONEY} from './catalog';
 import type {LevelLayout} from './content/types';
 import {Level} from './level';
+import {EcoWorld} from './ecology/world';
+import {createEcology} from './ecology/content';
 import {SlimeSimulation,type Rect} from './physics';
 import {WaxPlatform} from './wax';
 import {HoneyPool} from './honey';
@@ -34,8 +36,6 @@ export class HoneyLevel extends Level {
   {x:3360,y:600,w:228,h:360,kind:'wax-rock'},
   {x:4055,y:248,w:170,h:24,kind:'wax-rock',oneWay:true},
   {x:3618,y:600,w:740,h:360,kind:'wax-rock'},
-  {x:4410,y:588,w:86,h:20,kind:'hex-pad',oneWay:true},
-  {x:4725,y:588,w:86,h:20,kind:'hex-pad',oneWay:true},
   {x:4848,y:600,w:220,h:360,kind:'wax-rock'},
   {x:4358,y:800,w:490,h:180,kind:'pool'},
   {x:-30,y:-400,w:30,h:1400,kind:'boundary'},
@@ -43,13 +43,17 @@ export class HoneyLevel extends Level {
  ];
  readonly curtains:Rect[]=[{x:2630,y:330,w:78,h:270},{x:3210,y:200,w:80,h:220}];
  wax=[
+  new WaxPlatform(780,588,120),
+  new WaxPlatform(1000,588,120),
   new WaxPlatform(1660,588,120),
   new WaxPlatform(1865,572,122),
   new WaxPlatform(2277,555,118),
   new WaxPlatform(2840,432,110),
   new WaxPlatform(3680,248,115),
   new WaxPlatform(3880,248,115),
-  new WaxPlatform(4575,575,110),
+  new WaxPlatform(4410,588,120),
+  new WaxPlatform(4575,575,118),
+  new WaxPlatform(4720,588,120),
  ];
  pools=[
   new HoneyPool({x:728,y:598,w:484,h:206},true,6),
@@ -59,7 +63,7 @@ export class HoneyLevel extends Level {
  latchOn=false;
  override checkpoint={x:280,y:540};
  override solids:Rect[]=[];
- override souvenirs=[];
+ override souvenirs:{id:string;name:string;x:number;y:number;got:boolean}[]=[];
  override stakes=[];
  override enemies=[
   {kind:'bear',x:1340,y:600,id:'bear-a',patrol:50},
@@ -86,7 +90,9 @@ export class HoneyLevel extends Level {
    this.dew=layout.dew.map(d=>({...d}));
    if(layout.enemies.length)this.enemies=layout.enemies.map(e=>({...e,patrol:e.patrol??50}));
    this.checkpoint={...layout.checkpoint};
+   if(layout.souvenirs.length)this.souvenirs=layout.souvenirs.map(s=>({...s}));
   }
+  this.ecology=new EcoWorld(layout?.ecology??createEcology('honey',this.base,this.pools.map(p=>p.bounds)));
   this.sync();
  }
  private occupied(sim:SlimeSimulation,plate:{x:number;y:number},pad=38){
@@ -102,7 +108,7 @@ export class HoneyLevel extends Level {
   ];
  }
  film(group:number){return Math.max(0,...this.pools.map(p=>p.film.get(group)??0));}
- override update(sim:SlimeSimulation,dt:number){
+ override update(sim:SlimeSimulation,dt:number,interact=false){
   for(const p of this.wax)p.advance(dt,p.solid&&p.supported(sim));
   for(const wall of this.curtains){
    if(!sim.climbing)continue;
@@ -123,12 +129,16 @@ export class HoneyLevel extends Level {
   if(c.x>1280&&c.x<1550&&c.y<620&&this.checkpoint.x<1280)this.checkpoint={x:1380,y:540};
   if(c.x>2970&&c.x<3140&&c.y<370&&this.checkpoint.x<2970)this.checkpoint={x:3034,y:290};
   if(c.x>4200&&this.latchOn)this.checkpoint={x:4280,y:540};
+  this.ecology.update(dt,sim,interact);
+  this.applyEcoPlatforms(sim);
   for(const d of this.dew)if(!d.got&&sim.particles.some(p=>Math.hypot(p.x-d.x,p.y-d.y)<25))d.got=true;
+  for(const s of this.souvenirs)if(!s.got&&sim.particles.some(p=>Math.hypot(p.x-s.x,p.y-s.y)<28))s.got=true;
   this.stepPortals(sim,dt);
   if(c.x>4920&&sim.groups().length===1&&this.latchOn)this.complete=true;
   if(sim.particles.some(p=>!Number.isFinite(p.x)||p.y>980))this.respawn(sim);
  }
  override respawn(sim:SlimeSimulation){
+  this.ecology.rewind();
   for(const w of this.wax)w.reset();
   this.pools=this.pools.map(p=>new HoneyPool(p.bounds,p.drip,p.spacing));
   this.plateActive=[false,this.latchOn];

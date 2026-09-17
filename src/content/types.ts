@@ -1,6 +1,7 @@
 import type {Rect} from '../physics';
+import type {EcologyLayout} from '../ecology/types';
 
-export type DewSpot={x:number;y:number;got:boolean;role?:'main'|'bonus';skin?:string}
+export type DewSpot={id?:string;x:number;y:number;got:boolean;role?:'main'|'bonus';skin?:string;rarity?:'common'|'rare'}
 export type EnemySpot={id:string;kind:string;x:number;y:number;patrol?:number}
 export type SouvenirSpot={id:string;name:string;x:number;y:number;got:boolean}
 export type StakeSpot={id:string;x:number;y:number;w:number;h:number;hp:number;maxHp:number}
@@ -40,6 +41,8 @@ export type LevelLayout={
  win?:WinCond;
  dressing?:DressingSpot[];
  portals?:PortalSpot[];
+ contentVersion?:string;
+ ecology?:EcologyLayout;
 }
 
 export function cloneLayout(layout:LevelLayout):LevelLayout{
@@ -64,5 +67,12 @@ export function cloneLayout(layout:LevelLayout):LevelLayout{
   win:layout.win?{...layout.win}:undefined,
   dressing:layout.dressing?.map(d=>({...d})),
   portals:layout.portals?.map(p=>({...p})),
+  contentVersion:layout.contentVersion,
+  ecology:layout.ecology?{
+   ...layout.ecology,
+   interactables:layout.ecology.interactables?.map(o=>({...o,needs:o.needs?[...o.needs]:undefined,target:o.target?{...o.target}:undefined,platform:o.platform?{...o.platform}:undefined})),
+   fauna:layout.ecology.fauna?.map(f=>({...f})),events:layout.ecology.events?.map(e=>({...e,objects:[...e.objects]})),
+   challenges:layout.ecology.challenges?.map(c=>({...c,points:c.points.map(p=>({...p}))})),biomes:layout.ecology.biomes?.map(b=>({...b})),
+  }:undefined,
  };
 }

@@ -19,13 +19,14 @@ export type Actions={
  ranged:boolean;
  inventory:boolean;
  dodge:boolean;
+ interact:boolean;
  confirm:boolean;
  back:boolean;
  menuY:number;
 };
 
 export function emptyActions():Actions{
- return {move:0,climb:0,squeeze:false,jump:false,jumpHeld:false,split:false,merge:false,switch:false,select1:false,select2:false,reset:false,pause:false,melee:false,meleeHeld:false,ranged:false,inventory:false,dodge:false,confirm:false,back:false,menuY:0};
+ return {move:0,climb:0,squeeze:false,jump:false,jumpHeld:false,split:false,merge:false,switch:false,select1:false,select2:false,reset:false,pause:false,melee:false,meleeHeld:false,ranged:false,inventory:false,dodge:false,interact:false,confirm:false,back:false,menuY:0};
 }
 
 type PadSource=()=>(Gamepad|null)[];
@@ -137,6 +138,7 @@ export class PlayerInput {
   if(pressed(pad.buttons[5])||pressed(pad.buttons[4]))now.add('switch');
   if(pressed(pad.buttons[9]))now.add('pause');
   if(pressed(pad.buttons[8]))now.add('reset');
+  if(pressed(pad.buttons[10]))now.add('interact');
   if(pressed(pad.buttons[0]))now.add('confirm');
   if(pressed(pad.buttons[1]))now.add('back');
   for(const name of now)if(!this.prevPad.has(name))this.pulses.add(`pad:${name}`);
@@ -181,6 +183,7 @@ export class PlayerInput {
    ranged:edge('ranged'),
    inventory:edge('inventory'),
    dodge:edge('dodge')||this.pulses.has('mouse:dodge')||this.pulses.has('touch:dodge'),
+   interact:edge('interact'),
    confirm,back,menuY,
   };
   this.pulses.clear();

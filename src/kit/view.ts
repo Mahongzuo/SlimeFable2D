@@ -2,6 +2,9 @@ import {isolateSprite,keyedSprite} from '../art-key';
 import {asset} from '../asset';
 import type {DressingSpot,PortalSpot} from '../content/types';
 import type {SlimeSimulation} from '../physics';
+import type {EcoWorld} from '../ecology/world';
+import type {EcoObject,FaunaSpot} from '../ecology/types';
+import {drawEcoCritter,drawEcoKind,fern,flower,mushroom,starGateMark,windBellMark} from '../ecology/draw';
 import type {KitEntry} from './defs';
 import {kitById} from './register';
 
@@ -30,34 +33,6 @@ export function hydrateKitImages(){
  }
 }
 
-function ellipse(c:C,x:number,y:number,rx:number,ry:number,color:string,angle=0){
- c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,angle,0,Math.PI*2);c.fill();
-}
-
-function mushroom(c:C,s:number,color='#dc8d66'){
- c.save();c.scale(s,s);
- const stem=c.createLinearGradient(-10,0,14,0);stem.addColorStop(0,'#d2c5a0');stem.addColorStop(.5,'#f5e8b7');stem.addColorStop(1,'#9c9b70');
- c.fillStyle=stem;c.beginPath();c.moveTo(-9,0);c.bezierCurveTo(-1,-20,-13,-44,-10,-56);c.lineTo(9,-58);c.bezierCurveTo(5,-35,8,-12,15,0);c.closePath();c.fill();
- ellipse(c,0,-51,45,10,'#b78969');
- c.beginPath();c.moveTo(-47,-53);c.bezierCurveTo(-33,-89,-5,-99,15,-83);c.bezierCurveTo(32,-72,41,-65,48,-52);c.bezierCurveTo(16,-41,-20,-43,-47,-53);c.fillStyle=color;c.fill();
- c.restore();
-}
-
-function fern(c:C,s:number,flip=1){
- c.save();c.scale(s*flip,s);c.strokeStyle='#357e54';c.lineWidth=2;
- for(let b=0;b<5;b++){
-  const endX=(b-2)*14,endY=-42-Math.sin(b/4*Math.PI)*26;
-  c.beginPath();c.moveTo(0,0);c.quadraticCurveTo(endX*.3,endY*.8,endX,endY);c.stroke();
- }
- c.restore();
-}
-
-function flower(c:C,s:number,petal='#fff3ca'){
- c.save();c.scale(s,s);c.strokeStyle='#709355';c.lineWidth=1.3;c.beginPath();c.moveTo(0,0);c.lineTo(2,-18);c.stroke();
- for(let k=0;k<5;k++)ellipse(c,2+Math.cos(k*1.256)*3,-18+Math.sin(k*1.256)*3,2.8,2.2,petal);
- ellipse(c,2,-18,1.8,1.8,'#ddb968');c.restore();
-}
-
 function grassBand(c:C,w:number,press=0,phase=0,time=0){
  const h=14*Math.max(.32,1-press);
  const bend=Math.sin(time*1.8+phase)*3;
@@ -79,21 +54,8 @@ function souvenir(c:C,id='mossheart'){
  c.fillStyle=fill;c.beginPath();c.moveTo(0,-8);c.lineTo(7,6);c.lineTo(-7,6);c.closePath();c.fill();
 }
 
-function windBell(c:C,s=1){
- c.save();c.scale(s,s);c.strokeStyle='#d8b34f';c.lineWidth=3;c.beginPath();c.moveTo(0,-48);c.lineTo(0,0);c.stroke();
- c.fillStyle='#e0b94d';c.beginPath();c.ellipse(0,4,12,9,0,0,Math.PI*2);c.fill();c.restore();
-}
-
-function starGate(c:C,s=1){
- c.save();c.scale(s,s);
- c.fillStyle='#4d5870';
- c.beginPath();c.moveTo(-40,0);c.lineTo(-40,-128);c.quadraticCurveTo(0,-210,40,-128);c.lineTo(40,0);
- c.lineTo(24,0);c.lineTo(24,-118);c.quadraticCurveTo(0,-186,-24,-118);c.lineTo(-24,0);c.closePath();c.fill();
- const glow=c.createRadialGradient(0,-96,6,0,-96,46);
- glow.addColorStop(0,'#e8f6ffdd');glow.addColorStop(.45,'#8ad4ff99');glow.addColorStop(1,'#8ad4ff00');
- c.fillStyle=glow;c.beginPath();c.ellipse(0,-100,22,52,0,0,Math.PI*2);c.fill();
- c.restore();
-}
+function windBell(c:C,s=1){windBellMark(c,s);}
+function starGate(c:C,s=1){starGateMark(c,s);}
 
 function honeyMound(c:C,s=1){
  const g=c.createLinearGradient(-18,0,18,0);g.addColorStop(0,'#c48a38');g.addColorStop(.5,'#f6d17b');g.addColorStop(1,'#8a4316');
@@ -106,6 +68,48 @@ function honeyPuff(c:C,s=1){
 
 function jelly(c:C,s=1){
  c.fillStyle='#8ad4ff99';c.beginPath();c.ellipse(0,-8*s,10*s,8*s,0,0,Math.PI*2);c.fill();
+}
+
+function ecoObject(c:C,o:EcoObject,done:boolean,time:number){
+ const pulse=done?1+.08*Math.sin(time*4+o.x*.01):1;
+ c.save();c.translate(o.x,o.y);c.scale(pulse,pulse);
+ const glow=done?'#fff2a866':'#d9f3d933';
+ c.fillStyle=glow;c.beginPath();c.arc(0,-16,done?28:20,0,Math.PI*2);c.fill();
+ drawEcoKind(c,o.kind,done,time);
+ c.restore();
+}
+
+function ecoFauna(c:C,f:FaunaSpot,time:number,done:boolean){
+ const destx=f.target?.x??f.x,desty=f.target?.y??f.y;
+ const x=destx+Math.sin(time*.55+destx*.01)*f.span,y=desty+Math.cos(time*.7+desty*.01)*(f.span>60?10:4);
+ c.save();c.translate(x,y);c.globalAlpha=done?.9:.72;
+ drawEcoCritter(c,f.kind);
+ c.restore();
+}
+
+/** Draws the data-driven ecology layer shared by all five chapters. */
+export function drawEcology(c:C,world:EcoWorld,camera:number,time:number){
+ const eventOn=world.events.some(e=>world.completed.has(e.id));
+ for(const plat of world.revealedPlatforms()){
+  const x=plat.x-camera;if(x<-80||x>c.canvas.width+80)continue;
+  c.fillStyle='#d9f3d966';c.fillRect(x,plat.y,plat.w,plat.h);
+  c.strokeStyle='#fff2a888';c.strokeRect(x,plat.y,plat.w,plat.h);
+ }
+ for(const o of world.objects){
+  const x=o.x-camera;if(x<-80||x>c.canvas.width+80)continue;
+  const done=world.completed.has(o.id);
+  const copy={...o,x};ecoObject(c,copy,done,time);
+  if(!done)continue;
+  c.save();c.translate(x,o.y);
+  if(o.kind.includes('lantern')||o.kind.includes('lamp')||o.kind.includes('firefly')){
+   const glow=c.createRadialGradient(0,-28,2,0,-28,36);glow.addColorStop(0,'#fff2a8aa');glow.addColorStop(1,'#fff2a800');
+   c.fillStyle=glow;c.beginPath();c.arc(0,-28,36,0,Math.PI*2);c.fill();
+  }else if(o.kind.includes('flower')||o.kind.includes('lily')||o.kind.includes('dandelion')||o.kind.includes('seed')){
+   flower(c,1.15,'#fff3b0');
+  }
+  c.restore();
+ }
+ for(const f of world.fauna){const x=f.x-camera;if(x<-100||x>c.canvas.width+100)continue;const copy={...f,x};ecoFauna(c,copy,time,eventOn);}
 }
 
 function ready(img:Sheet|undefined){
